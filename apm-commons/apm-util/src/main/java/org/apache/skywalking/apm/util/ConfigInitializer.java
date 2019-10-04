@@ -67,7 +67,7 @@ public class ConfigInitializer {
                         if (type.equals(int.class))
                             field.set(null, Integer.valueOf(value));
                         else if (type.equals(String.class))
-                            field.set(null, value);
+                            field.set(null, value); // 设置static字段，obj为null
                         else if (type.equals(long.class))
                             field.set(null, Long.valueOf(value));
                         else if (type.equals(boolean.class))

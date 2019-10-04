@@ -40,7 +40,7 @@ public class PluginResourcesResolver {
     public List<URL> getResources() {
         List<URL> cfgUrlPaths = new ArrayList<URL>();
         Enumeration<URL> urls;
-        try {
+        try {// 读取所有jar包中的skywalking-plugin.def文件，插件的jar包需要有这个文件
             urls = AgentClassLoader.getDefault().getResources("skywalking-plugin.def");
 
             while (urls.hasMoreElements()) {

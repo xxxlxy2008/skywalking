@@ -42,10 +42,10 @@ public class PluginBootstrap {
      * @return plugin definition list.
      */
     public List<AbstractClassEnhancePluginDefine> loadPlugins() throws AgentPackageNotFoundException {
-        AgentClassLoader.initDefaultLoader();
+        AgentClassLoader.initDefaultLoader(); // 创建AgentClassLoader，单例的，就是AppClassLoader下面的子ClassLoader
 
         PluginResourcesResolver resolver = new PluginResourcesResolver();
-        List<URL> resources = resolver.getResources();
+        List<URL> resources = resolver.getResources(); // 获取插件jar包中的skywalking-plugin.def文件
 
         if (resources == null || resources.size() == 0) {
             logger.info("no plugin files (skywalking-plugin.def) found, continue to start application.");
@@ -53,7 +53,7 @@ public class PluginBootstrap {
         }
 
         for (URL pluginUrl : resources) {
-            try {
+            try { // PluginCfg是个枚举，单例的
                 PluginCfg.INSTANCE.load(pluginUrl.openStream());
             } catch (Throwable t) {
                 logger.error(t, "plugin file [{}] init failure.", pluginUrl);
@@ -61,7 +61,7 @@ public class PluginBootstrap {
         }
 
         List<PluginDefine> pluginClassList = PluginCfg.INSTANCE.getPluginClassList();
-
+        // 加载所有插件，AbstractClassEnhancePluginDefine是所有插件的父类
         List<AbstractClassEnhancePluginDefine> plugins = new ArrayList<AbstractClassEnhancePluginDefine>();
         for (PluginDefine pluginDefine : pluginClassList) {
             try {
@@ -76,7 +76,7 @@ public class PluginBootstrap {
                 logger.error(t, "load plugin [{}] failure.", pluginDefine.getDefineClass());
             }
         }
-
+        // 还可以通过spi的方式加载插件
         plugins.addAll(DynamicPluginLoader.INSTANCE.load(AgentClassLoader.getDefault()));
 
         return plugins;

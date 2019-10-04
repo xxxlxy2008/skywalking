@@ -37,7 +37,7 @@ public class AgentPackagePath {
 
     public static File getPath() throws AgentPackageNotFoundException {
         if (AGENT_PACKAGE_PATH == null) {
-            AGENT_PACKAGE_PATH = findPath();
+            AGENT_PACKAGE_PATH = findPath(); // 拿到skywalking-agent.jar所在的目录
         }
         return AGENT_PACKAGE_PATH;
     }
@@ -58,7 +58,7 @@ public class AgentPackagePath {
             int insidePathIndex = urlString.indexOf('!');
             boolean isInJar = insidePathIndex > -1;
 
-            if (isInJar) {
+            if (isInJar) { // 判断是不是在jar包里面
                 urlString = urlString.substring(urlString.indexOf("file:"), insidePathIndex);
                 File agentJarFile = null;
                 try {

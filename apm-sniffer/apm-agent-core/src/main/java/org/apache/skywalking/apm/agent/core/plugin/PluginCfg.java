@@ -38,7 +38,7 @@ public enum PluginCfg {
     private List<PluginDefine> pluginClassList = new ArrayList<PluginDefine>();
 
     void load(InputStream input) throws IOException {
-        try {
+        try { // skywalking-plugin.def文件
             BufferedReader reader = new BufferedReader(new InputStreamReader(input));
             String pluginDefine = null;
             while ((pluginDefine = reader.readLine()) != null) {
@@ -46,7 +46,7 @@ public enum PluginCfg {
                     if (pluginDefine == null || pluginDefine.trim().length() == 0 || pluginDefine.startsWith("#")) {
                         continue;
                     }
-                    PluginDefine plugin = PluginDefine.build(pluginDefine);
+                    PluginDefine plugin = PluginDefine.build(pluginDefine); // 解析插件定义，PluginDefine就是个普通的Bean
                     pluginClassList.add(plugin);
                 } catch (IllegalPluginDefineException e) {
                     logger.error(e, "Failed to format plugin({}) define.", pluginDefine);

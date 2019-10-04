@@ -58,19 +58,19 @@ public class SnifferConfigInitializer {
         try {
             configFileStream = loadConfig();
             Properties properties = new Properties();
-            properties.load(configFileStream);
+            properties.load(configFileStream); // 默认配置有四项，日志级别、日志文件名、当前app的名称、后端collector地址
             for (String key : properties.stringPropertyNames()) {
                 String value = (String)properties.get(key);
                 //replace the key's value. properties.replace(key,value) in jdk8+
                 properties.put(key, PropertyPlaceholderHelper.INSTANCE.replacePlaceholders(value, properties));
             }
-            ConfigInitializer.initialize(properties, Config.class);
+            ConfigInitializer.initialize(properties, Config.class); // 将properties中的值设置到Config中各个静态类的相应字段上，反射
         } catch (Exception e) {
             logger.error(e, "Failed to read the config file, skywalking is going to run in default config.");
         }
 
         try {
-            overrideConfigBySystemProp();
+            overrideConfigBySystemProp(); // System.getProperties()里面skywalking开头的配置，会替换Config中相应字段的值
         } catch (Exception e) {
             logger.error(e, "Failed to read the system properties.");
         }
@@ -80,12 +80,12 @@ public class SnifferConfigInitializer {
                 agentOptions = agentOptions.trim();
                 logger.info("Agent options is {}.", agentOptions);
 
-                overrideConfigByAgentOptions(agentOptions);
+                overrideConfigByAgentOptions(agentOptions); // 解析agent的参数，并且替换Config中的相应字段值
             } catch (Exception e) {
                 logger.error(e, "Failed to parse the agent options, val is {}.", agentOptions);
             }
         }
-
+        // 检测Config中的几个关键字段
         if (StringUtil.isEmpty(Config.Agent.SERVICE_NAME)) {
             throw new ExceptionInInitializerError("`agent.service_name` is missing.");
         }
@@ -97,7 +97,7 @@ public class SnifferConfigInitializer {
             Config.Plugin.PEER_MAX_LENGTH = 200;
         }
 
-        IS_INIT_COMPLETED = true;
+        IS_INIT_COMPLETED = true; // 设置初始化标记
     }
 
     private static void overrideConfigByAgentOptions(String agentOptions) throws IllegalAccessException {
@@ -175,7 +175,7 @@ public class SnifferConfigInitializer {
      * @return the config file {@link InputStream}, or null if not needEnhance.
      */
     private static InputStreamReader loadConfig() throws AgentPackageNotFoundException, ConfigNotFoundException, ConfigReadFailedException {
-
+        // 默认配置文件就在skywalking-agent.jar所在目录的/config/agent.config
         String specifiedConfigPath = System.getProperties().getProperty(SPECIFIED_CONFIG_PATH);
         File configFile = StringUtil.isEmpty(specifiedConfigPath) ? new File(AgentPackagePath.getPath(), DEFAULT_CONFIG_FILE_NAME) : new File(specifiedConfigPath);
 
