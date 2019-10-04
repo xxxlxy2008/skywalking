@@ -81,12 +81,12 @@ public class SkyWalkingAgent {
             logger.error(e, "SkyWalking agent initialized failure. Shutting down.");
             return;
         }
-
+        // ByteBuddy API
         final ByteBuddy byteBuddy = new ByteBuddy()
             .with(TypeValidation.of(Config.Agent.IS_OPEN_DEBUGGING_CLASS));
 
         AgentBuilder agentBuilder = new AgentBuilder.Default(byteBuddy)
-            .ignore(
+            .ignore( // 忽略这些包
                 nameStartsWith("net.bytebuddy.")
                     .or(nameStartsWith("org.slf4j."))
                     .or(nameStartsWith("org.apache.logging."))
@@ -95,9 +95,9 @@ public class SkyWalkingAgent {
                     .or(nameContains(".asm."))
                     .or(nameStartsWith("sun.reflect"))
                     .or(allSkyWalkingAgentExcludeToolkit())
-                    .or(ElementMatchers.<TypeDescription>isSynthetic()));
+                    .or(ElementMatchers.<TypeDescription>isSynthetic())); // 忽略synthetic(就编译器生成的代码)
 
-        try {
+        try { // 把一些类注入到BootstrapClassLoader中
             agentBuilder = BootstrapInstrumentBoost.inject(pluginFinder, agentBuilder, instrumentation);
         } catch (Exception e) {
             logger.error(e, "SkyWalking agent inject bootstrap instrumentation failure. Shutting down.");

@@ -92,7 +92,7 @@ public class BootstrapInstrumentBoost {
         /**
          * Inject the classes into bootstrap class loader by using Unsafe Strategy.
          * ByteBuddy adapts the sun.misc.Unsafe and jdk.internal.misc.Unsafe automatically.
-         */
+         */ // 把classesTypeMap中的类注入到BootstrapClassLoader
         ClassInjector.UsingUnsafe.ofBootLoader().injectRaw(classesTypeMap);
         agentBuilder = agentBuilder.enableUnsafeBootstrapInjection();
 
