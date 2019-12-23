@@ -77,7 +77,7 @@ public class InstMethodsInterWithOverrideArgs {
         EnhancedInstance targetObject = (EnhancedInstance)obj;
 
         MethodInterceptResult result = new MethodInterceptResult();
-        try {
+        try { // beforeMethod
             interceptor.beforeMethod(targetObject, method, allArguments, method.getParameterTypes(),
                 result);
         } catch (Throwable t) {
@@ -89,7 +89,7 @@ public class InstMethodsInterWithOverrideArgs {
             if (!result.isContinue()) {
                 ret = result._ret();
             } else {
-                ret = zuper.call(allArguments);
+                ret = zuper.call(allArguments); // 带参数的
             }
         } catch (Throwable t) {
             try {

@@ -44,7 +44,9 @@ public class RegisterDistinctWorker extends AbstractWorker<RegisterSource> {
         super(moduleDefineHolder);
         this.nextWorker = nextWorker;
         this.sources = new HashMap<>();
+        // 创建 DataCarrier 对象
         this.dataCarrier = new DataCarrier<>(1, 1000);
+        // 创建消费者线程池，BulkConsumePool的具体实现已经分析过了，这里不再展开
         String name = "REGISTER_L1";
         int size = BulkConsumePool.Creator.recommendMaxSize() / 8;
         if (size == 0) {
@@ -56,23 +58,26 @@ public class RegisterDistinctWorker extends AbstractWorker<RegisterSource> {
         } catch (Exception e) {
             throw new UnexpectedException(e.getMessage(), e);
         }
+        // 消费者线程真正执行的是 AggregatorConsumer.consume()方法
         this.dataCarrier.consume(ConsumerPoolFactory.INSTANCE.get(name), new AggregatorConsumer(this));
     }
 
     @Override public final void in(RegisterSource source) {
+        // EndOfBatchContext是批量操作结束的标识
         source.setEndOfBatchContext(new EndOfBatchContext(false));
+        // 将RegisterSource写入缓冲区
         dataCarrier.produce(source);
     }
 
     private void onWork(RegisterSource source) {
-        messageNum++;
-
+        messageNum++; // 统计消息个数
+        // 下面会对重复 RegisterSource对象并进行合并
         if (!sources.containsKey(source)) {
             sources.put(source, source);
         } else {
             sources.get(source).combine(source);
         }
-
+        // 定期清理sources缓存
         if (messageNum >= 1000 || source.getEndOfBatchContext().isEndOfBatch()) {
             sources.values().forEach(nextWorker::in);
             sources.clear();

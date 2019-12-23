@@ -35,7 +35,8 @@ public class ModuleManager implements ModuleDefineHolder {
      */
     public void init(
         ApplicationConfiguration applicationConfiguration) throws ModuleNotFoundException, ProviderNotFoundException, ServiceNotProvidedException, CycleDependencyException, ModuleConfigException, ModuleStartException {
-        String[] moduleNames = applicationConfiguration.moduleList();
+        String[] moduleNames = applicationConfiguration.moduleList(); // 根据配置拿到所有 Module的名称
+        // 通过 SPI方式加载 ModuleDefine接口和 ModuleProvider接口的实现，很明显，又是微内核+插件的架构
         ServiceLoader<ModuleDefine> moduleServiceLoader = ServiceLoader.load(ModuleDefine.class);
         ServiceLoader<ModuleProvider> moduleProviderLoader = ServiceLoader.load(ModuleProvider.class);
 
@@ -43,6 +44,7 @@ public class ModuleManager implements ModuleDefineHolder {
         for (ModuleDefine module : moduleServiceLoader) {
             for (String moduleName : moduleNames) {
                 if (moduleName.equals(module.name())) {
+                    // 实例化并调用prepare()方法进行初始化
                     ModuleDefine newInstance;
                     try {
                         newInstance = module.getClass().newInstance();
@@ -50,6 +52,7 @@ public class ModuleManager implements ModuleDefineHolder {
                         throw new ModuleNotFoundException(e);
                     }
                     newInstance.prepare(this, applicationConfiguration.getModuleConfiguration(moduleName), moduleProviderLoader);
+                    // 记录初始化的 ModuleDefine
                     loadedModules.put(moduleName, newInstance);
                     moduleList.remove(moduleName);
                 }
@@ -61,10 +64,11 @@ public class ModuleManager implements ModuleDefineHolder {
         if (moduleList.size() > 0) {
             throw new ModuleNotFoundException(moduleList.toString() + " missing.");
         }
-
+        // 初始化 BootstrapFlow，具体的初始化逻辑后面展开分析
         BootstrapFlow bootstrapFlow = new BootstrapFlow(loadedModules);
-
+        // 启动 Module
         bootstrapFlow.start(this);
+        // 启动流程结束之后，会通过 ModuleProvider
         bootstrapFlow.notifyAfterCompleted();
     }
 

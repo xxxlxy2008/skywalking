@@ -71,13 +71,17 @@ public class ServiceInventoryCacheEsDAO extends EsDAO implements IServiceInvento
 
     @Override public ServiceInventory get(int serviceId) {
         try {
+            // 创建 SearchRequest
             SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+            // 查询 sequence 字段
             searchSourceBuilder.query(QueryBuilders.termQuery(ServiceInventory.SEQUENCE, serviceId));
+            // 只返回一条数据
             searchSourceBuilder.size(1);
-
+            // 发送请求查询
             SearchResponse response = getClient().search(ServiceInventory.INDEX_NAME, searchSourceBuilder);
             if (response.getHits().totalHits == 1) {
                 SearchHit searchHit = response.getHits().getAt(0);
+                // 将查询结果转换为 ServiceInventory对象并返回
                 return builder.map2Data(searchHit.getSourceAsMap());
             } else {
                 return null;

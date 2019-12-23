@@ -39,7 +39,9 @@ public class OAPServerStartUp {
         ApplicationConfigLoader configLoader = new ApplicationConfigLoader();
         ModuleManager manager = new ModuleManager();
         try {
+            // 加载 Collector配置
             ApplicationConfiguration applicationConfiguration = configLoader.load();
+            // 初始化 Collector组件
             manager.init(applicationConfiguration);
 
             manager.find(TelemetryModule.NAME).provider().getService(MetricsCreator.class).createGauge("uptime",

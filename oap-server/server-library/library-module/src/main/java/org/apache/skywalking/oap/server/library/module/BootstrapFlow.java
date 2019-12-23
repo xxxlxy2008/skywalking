@@ -41,7 +41,8 @@ class BootstrapFlow {
     @SuppressWarnings("unchecked")
     void start(
         ModuleManager moduleManager) throws ModuleNotFoundException, ServiceNotProvidedException, ModuleStartException {
-        for (ModuleProvider provider : startupSequence) {
+        for (ModuleProvider provider : startupSequence) { // 按照startupSequence集合的顺序启动
+            // 检测当前 ModuleProvider依赖的 Module对象是否存在(略)
             String[] requiredModules = provider.requiredModules();
             if (requiredModules != null) {
                 for (String module : requiredModules) {
@@ -52,8 +53,9 @@ class BootstrapFlow {
                 }
             }
             logger.info("start the provider {} in {} module.", provider.name(), provider.getModuleName());
+            // 检查当前 ModuleProvider对象是否能提供 Module指定的服务
             provider.requiredCheck(provider.getModule().services());
-
+            // 启动 ModuleProvider
             provider.start();
         }
     }
@@ -65,19 +67,22 @@ class BootstrapFlow {
     }
 
     private void makeSequence() throws CycleDependencyException {
+        // 获取全部ModuleProvider对象
         List<ModuleProvider> allProviders = new ArrayList<>();
         loadedModules.forEach((moduleName, module) -> allProviders.addAll(module.providers()));
 
         do {
             int numOfToBeSequenced = allProviders.size();
-            for (int i = 0; i < allProviders.size(); i++) {
+            for (int i = 0; i < allProviders.size(); i++) { // 尝试逐个初始化ModuleProvider对象
                 ModuleProvider provider = allProviders.get(i);
+                // 获取当前ModuleProvider依赖的Module
                 String[] requiredModules = provider.requiredModules();
                 if (CollectionUtils.isNotEmpty(requiredModules)) {
                     boolean isAllRequiredModuleStarted = true;
                     for (String module : requiredModules) {
                         // find module in all ready existed startupSequence
                         boolean exist = false;
+                        // 检测依赖的Module是否已经被初始化了
                         for (ModuleProvider moduleProvider : startupSequence) {
                             if (moduleProvider.getModuleName().equals(module)) {
                                 exist = true;
@@ -96,12 +101,14 @@ class BootstrapFlow {
                         i--;
                     }
                 } else {
+                    // 添加到startupSequence集合，确定其初始化顺序
                     startupSequence.add(provider);
+                    // 清理allProviders集合
                     allProviders.remove(i);
                     i--;
                 }
             }
-
+            // 检测是否出现了循环依赖(略)
             if (numOfToBeSequenced == allProviders.size()) {
                 StringBuilder unSequencedProviders = new StringBuilder();
                 allProviders.forEach(provider -> unSequencedProviders.append(provider.getModuleName()).append("[provider=").append(provider.getClass().getName()).append("]\n"));

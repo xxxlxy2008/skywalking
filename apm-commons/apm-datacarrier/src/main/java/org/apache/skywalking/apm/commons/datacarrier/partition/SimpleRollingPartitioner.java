@@ -28,11 +28,13 @@ package org.apache.skywalking.apm.commons.datacarrier.partition;
 public class SimpleRollingPartitioner<T> implements IDataPartitioner<T> {
     private volatile int i = 0;
 
+    // 分区函数，返回值即为选择的分区下标
     @Override
     public int partition(int total, T data) {
         return Math.abs(i++ % total);
     }
 
+    // 返回值表示重试次数，只在IF_POSSIBLE策略下有效
     @Override
     public int maxRetryCount() {
         return 3;

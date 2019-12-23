@@ -42,11 +42,12 @@ public class RemoteSenderService implements Service {
     }
 
     public void send(int nextWorkId, StreamData streamData, Selector selector) {
+        // RemoteClientManager是用来管理一个 RemoteClient集合，其具体逻辑在后面展开
         RemoteClientManager clientManager = moduleManager.find(CoreModule.NAME).provider().getService(RemoteClientManager.class);
 
         RemoteClient remoteClient;
         switch (selector) {
-            case HashCode:
+            case HashCode: // 用hash方式查找一个RemoteClient对象，然后将RegisterSource发送出去
                 remoteClient = hashCodeSelector.select(clientManager.getRemoteClient(), streamData);
                 remoteClient.push(nextWorkId, streamData);
                 break;

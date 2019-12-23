@@ -70,6 +70,7 @@ public class DispatcherManager {
      * @throws InstantiationException
      */
     public void scan() throws IOException, IllegalAccessException, InstantiationException {
+        // 扫描当前 classpath下 org.apache.skywalking包中的全部类
         ClassPath classpath = ClassPath.from(this.getClass().getClassLoader());
         ImmutableSet<ClassPath.ClassInfo> classes = classpath.getTopLevelClassesRecursive("org.apache.skywalking");
         for (ClassPath.ClassInfo classInfo : classes) {
@@ -79,6 +80,7 @@ public class DispatcherManager {
                 Type[] genericInterfaces = aClass.getGenericInterfaces();
                 for (Type genericInterface : genericInterfaces) {
                     ParameterizedType anInterface = (ParameterizedType)genericInterface;
+                    // 是否实现 SourceDispatcher接口
                     if (anInterface.getRawType().getTypeName().equals(SourceDispatcher.class.getName())) {
                         Type[] arguments = anInterface.getActualTypeArguments();
 
@@ -86,7 +88,7 @@ public class DispatcherManager {
                             throw new UnexpectedException("unexpected type argument number, class " + aClass.getName());
                         }
                         Type argument = arguments[0];
-
+                        // 泛型是否实现了Source抽象类
                         Object source = ((Class)argument).newInstance();
 
                         if (!Source.class.isAssignableFrom(source.getClass())) {
@@ -95,9 +97,9 @@ public class DispatcherManager {
 
                         Source dispatcherSource = (Source)source;
                         SourceDispatcher dispatcher = (SourceDispatcher)aClass.newInstance();
-
+                        // 每个 Source抽象类都对应一个固定的scopeId
                         int scopeId = dispatcherSource.scope();
-
+                        // 将该SourceDispatcher添加到该Source类型对应的SourceDispatcher集合中
                         List<SourceDispatcher> dispatchers = this.dispatcherMap.get(scopeId);
                         if (dispatchers == null) {
                             dispatchers = new ArrayList<>();

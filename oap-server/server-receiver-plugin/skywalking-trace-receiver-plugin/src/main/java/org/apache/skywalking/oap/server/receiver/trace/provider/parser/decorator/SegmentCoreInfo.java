@@ -26,13 +26,25 @@ import lombok.*;
 @Getter
 @Setter
 public class SegmentCoreInfo {
+    // TraceSegment编号，即 TraceSegment.traceSegmentId 。
     private String segmentId;
+
+    // Segment所属的Service以及ServiceInstance
     private int serviceId;
     private int serviceInstanceId;
+
+    // Segment的开始时间和结束时间
     private long startTime;
     private long endTime;
+
+    // 如果TraceSegment范围内的任意一个Span被标记了Error，则该字段会被设置为true
     private boolean isError;
+
+    // TraceSegment开始时间窗口(即第一个Span开始时间所处的分钟级时间窗口)
     private long minuteTimeBucket;
+
+    // 整个TraceSegment的数据
     private byte[] dataBinary;
+    // 是否为V2版本的TraceSegment
     private boolean isV2;
 }

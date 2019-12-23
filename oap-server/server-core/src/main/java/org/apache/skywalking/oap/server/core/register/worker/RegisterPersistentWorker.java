@@ -76,30 +76,38 @@ public class RegisterPersistentWorker extends AbstractWorker<RegisterSource> {
 
     private void onWork(RegisterSource registerSource) {
         if (!sources.containsKey(registerSource)) {
+            // 该RegisterSource第一次出现，直接放入sources缓存
             sources.put(registerSource, registerSource);
         } else {
+            // 该RegisterSource对象出现多次，则进行合并，combine()方法逻辑在前面分析过了，这里不再赘述
             sources.get(registerSource).combine(registerSource);
         }
-
+        // 当 sources缓存到达一定量或是遇到EndOfBatch标记的时候，开始统一处理
         if (sources.size() > 1000 || registerSource.getEndOfBatchContext().isEndOfBatch()) {
             sources.values().forEach(source -> {
                 try {
+                    // 根据id，尝试从底层存储中查询ServiceInventory
                     RegisterSource dbSource = registerDAO.get(modelName, source.id());
                     if (Objects.nonNull(dbSource)) {
                         if (dbSource.combine(source)) {
+                            // 存在相同的 ServiceInventory，会进行合并，并更新底层ES
                             registerDAO.forceUpdate(modelName, dbSource);
                         }
                     } else {
                         int sequence;
+                        // 加锁，IRegisterLockDAO通过底层存储实现了全局锁的功能，后面会展开分析其基于ES的实现
                         if ((sequence = registerLockDAO.getId(scopeId, source)) != Const.NONE) {
                             try {
+                                // 再次check，类似于 Java单例中的 double check
                                 dbSource = registerDAO.get(modelName, source.id());
                                 if (Objects.nonNull(dbSource)) {
                                     if (dbSource.combine(source)) {
                                         registerDAO.forceUpdate(modelName, dbSource);
                                     }
                                 } else {
+                                    // 加锁后依旧无法查询到相同ServiceInventory，则该sequence即为serviceName对应的serviceId
                                     source.setSequence(sequence);
+                                    // 初次写入
                                     registerDAO.forceInsert(modelName, source);
                                 }
                             } catch (Throwable t) {

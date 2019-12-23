@@ -42,11 +42,11 @@ public enum ServiceManager {
     private Map<Class, BootService> bootedServices = Collections.emptyMap();
 
     public void boot() {
-        bootedServices = loadAllServices();
+        bootedServices = loadAllServices(); // SPI加载BootService，有覆盖之类的
 
-        prepare();
-        startup();
-        onComplete();
+        prepare(); // 调用全部BootService的prepare()方法
+        startup(); // 调用全部BootService的boot()方法
+        onComplete(); // 调用全部BootService的onComplete()方法
     }
 
     public void shutdown() {
@@ -70,7 +70,7 @@ public enum ServiceManager {
             Class<? extends BootService> bootServiceClass = bootService.getClass();
             boolean isDefaultImplementor = bootServiceClass.isAnnotationPresent(DefaultImplementor.class);
             if (isDefaultImplementor) {
-                if (!bootedServices.containsKey(bootServiceClass)) {
+                if (!bootedServices.containsKey(bootServiceClass)) { // 记录@DefaultImplementor注解的BootService
                     bootedServices.put(bootServiceClass, bootService);
                 } else {
                     //ignore the default service
@@ -144,7 +144,7 @@ public enum ServiceManager {
         return (T)bootedServices.get(serviceClass);
     }
 
-    void load(List<BootService> allServices) {
+    void load(List<BootService> allServices) { // SPI加载META-INF/services下的全部BootService
         Iterator<BootService> iterator = ServiceLoader.load(BootService.class, AgentClassLoader.getDefault()).iterator();
         while (iterator.hasNext()) {
             allServices.add(iterator.next());

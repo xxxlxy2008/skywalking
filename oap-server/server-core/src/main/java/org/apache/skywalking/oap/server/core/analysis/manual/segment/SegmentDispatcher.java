@@ -28,6 +28,7 @@ import org.apache.skywalking.oap.server.core.source.Segment;
 public class SegmentDispatcher implements SourceDispatcher<Segment> {
 
     @Override public void dispatch(Segment source) {
+        // 转换，Segment转换成SegmentRecord
         SegmentRecord segment = new SegmentRecord();
         segment.setSegmentId(source.getSegmentId());
         segment.setTraceId(source.getTraceId());

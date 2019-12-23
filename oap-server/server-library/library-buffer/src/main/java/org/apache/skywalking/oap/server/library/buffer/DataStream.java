@@ -33,7 +33,7 @@ class DataStream<MESSAGE_TYPE extends GeneratedMessageV3> {
     private static final Logger logger = LoggerFactory.getLogger(DataStream.class);
 
     private final File directory;
-    private final OffsetStream offsetStream;
+    private final OffsetStream offsetStream; // 用Offset文件记录读写位置
     @Getter private final DataStreamReader<MESSAGE_TYPE> reader;
     @Getter private final DataStreamWriter<MESSAGE_TYPE> writer;
     private boolean initialized = false;
@@ -43,7 +43,8 @@ class DataStream<MESSAGE_TYPE extends GeneratedMessageV3> {
         this.directory = directory;
         this.offsetStream = new OffsetStream(directory, offsetFileMaxSize);
         this.writer = new DataStreamWriter<>(directory, offsetStream.getOffset().getWriteOffset(), dataFileMaxSize);
-        this.reader = new DataStreamReader<>(directory, offsetStream.getOffset().getReadOffset(), parser, callBack);
+        this.reader = new DataStreamReader<>(directory,
+                offsetStream.getOffset().getReadOffset(), parser, callBack);
     }
 
     void clean() throws IOException {

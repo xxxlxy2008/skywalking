@@ -35,11 +35,11 @@ public class TimeSeriesUtils {
         switch (downsampling) {
             case None:
                 return modelName;
-            case Hour:
+            case Hour: // 不同DownSampling的后缀不同，Hour是除以100,即一天的数据存储到一个Index中
                 return modelName + Const.LINE + timeBucket / 100;
-            case Minute:
+            case Minute: // Minute是除以10000,即一天的数据存储到一个Index中
                 return modelName + Const.LINE + timeBucket / 10000;
-            case Second:
+            case Second: // Second是除以1000000,即一天的数据存储到一个Index中
                 return modelName + Const.LINE + timeBucket / 1000000;
             default:
                 return modelName + Const.LINE + timeBucket;
@@ -48,9 +48,10 @@ public class TimeSeriesUtils {
 
     static String timeSeries(Model model, long timeBucket) {
         if (!model.isCapableOfTimeSeries()) {
+            // 检测 Model的capableOfTimeSeries字段，不需要按照时间窗口切分Index的数据，直接返回即可
             return model.getName();
         }
-
+        // 追加时间窗口的后缀
         return timeSeries(model.getName(), timeBucket, model.getDownsampling());
     }
 

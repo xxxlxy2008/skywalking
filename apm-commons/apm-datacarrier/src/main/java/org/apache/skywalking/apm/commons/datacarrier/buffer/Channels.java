@@ -26,9 +26,13 @@ import org.apache.skywalking.apm.commons.datacarrier.partition.IDataPartitioner;
  * is full. The Default is BLOCKING <p> Created by wusheng on 2016/10/25.
  */
 public class Channels<T> {
+    // 底层封装的多个环形缓冲区
     private final Buffer<T>[] bufferChannels;
+    // 分区选择器，由它确定数据到底写入哪个缓冲区
     private IDataPartitioner<T> dataPartitioner;
+    // 缓冲区满时的写入策略
     private BufferStrategy strategy;
+    // 整个Channels的总大小，实际就是所有底层Buffer的和
     private final long size;
 
     public Channels(int channelSize, int bufferSize, IDataPartitioner<T> partitioner, BufferStrategy strategy) {
@@ -42,8 +46,10 @@ public class Channels<T> {
     }
 
     public boolean save(T data) {
+        // 选择写入的分区下标
         int index = dataPartitioner.partition(bufferChannels.length, data);
         int retryCountDown = 1;
+        // 根据当前的策略，选择合适的
         if (BufferStrategy.IF_POSSIBLE.equals(strategy)) {
             int maxRetryCount = dataPartitioner.maxRetryCount();
             if (maxRetryCount > 1) {

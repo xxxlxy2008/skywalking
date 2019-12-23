@@ -37,7 +37,10 @@ import static org.apache.skywalking.oap.server.core.source.DefaultScopeDefine.SE
  * @author peng-yongsheng
  */
 @ScopeDeclaration(id = SERVICE_INVENTORY, name = "ServiceInventory")
-@Stream(name = ServiceInventory.INDEX_NAME, scopeId = DefaultScopeDefine.SERVICE_INVENTORY, builder = ServiceInventory.Builder.class, processor = InventoryStreamProcessor.class)
+@Stream(name = ServiceInventory.INDEX_NAME,
+        scopeId = DefaultScopeDefine.SERVICE_INVENTORY,
+        builder = ServiceInventory.Builder.class,
+        processor = InventoryStreamProcessor.class)
 public class ServiceInventory extends RegisterSource {
 
     public static final String INDEX_NAME = "service_inventory";
@@ -183,12 +186,13 @@ public class ServiceInventory extends RegisterSource {
     }
 
     @Override public boolean combine(RegisterSource registerSource) {
-        super.combine(registerSource);
+        super.combine(registerSource); // 更新 heartbeatTime字段，两个 heartbeatTime选一个时间较近的
         ServiceInventory serviceInventory = (ServiceInventory)registerSource;
 
-        nodeType = serviceInventory.nodeType;
-        setProp(serviceInventory.getProp());
-        if (Const.NONE != serviceInventory.getMappingServiceId() && serviceInventory.getMappingLastUpdateTime() >= this.getMappingLastUpdateTime()) {
+        nodeType = serviceInventory.nodeType; // 更新 nodeType字段
+        setProp(serviceInventory.getProp()); // 更新 prop和 properties字段
+        if (Const.NONE != serviceInventory.getMappingServiceId()
+                && serviceInventory.getMappingLastUpdateTime() >= this.getMappingLastUpdateTime()) {
             this.mappingServiceId = serviceInventory.getMappingServiceId();
             this.mappingLastUpdateTime = serviceInventory.getMappingLastUpdateTime();
         }

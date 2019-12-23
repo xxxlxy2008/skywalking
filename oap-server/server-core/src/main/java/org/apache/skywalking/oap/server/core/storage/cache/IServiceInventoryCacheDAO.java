@@ -26,12 +26,12 @@ import org.apache.skywalking.oap.server.core.storage.DAO;
  * @author peng-yongsheng
  */
 public interface IServiceInventoryCacheDAO extends DAO {
-
+    // 根据 serviceName 查询对应的 serviceId
     int getServiceId(String serviceName);
-
+    // 根据 addressId 查询对应的 id
     int getServiceId(int addressId);
-
+    // 根据 serviceId 查询对应的 ServiceInventory 对象
     ServiceInventory get(int serviceId);
-
+    // 查询最近 30分钟内更新的 ServiceInventory数据(最多返回50条)
     List<ServiceInventory> loadLastMappingUpdate();
 }

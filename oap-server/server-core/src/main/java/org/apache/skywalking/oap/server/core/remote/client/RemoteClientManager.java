@@ -171,14 +171,15 @@ public class RemoteClientManager implements Service {
      * @param remoteInstances Remote instance collection by query cluster config.
      */
     private synchronized void reBuildRemoteClients(List<RemoteInstance> remoteInstances) {
-        getFreeClients().clear();
-
+        getFreeClients().clear(); // getFreeClients()方法返回的是那个空闲Client集合，这里会将其清空
+        // getRemoteClient()方法返回的是正在使用的Client集合，这里将其拷贝到remoteClients集合和tempRemoteClients集合
         Map<Address, RemoteClient> remoteClients = new HashMap<>();
         getRemoteClient().forEach(client -> remoteClients.put(client.getAddress(), client));
 
+        // tempRemoteClients集合中所有Client默认为Close标识
         Map<Address, Action> tempRemoteClients = new HashMap<>();
         getRemoteClient().forEach(client -> tempRemoteClients.put(client.getAddress(), Action.Close));
-
+        // 根据拉取到的集群配置，为每个节点对应的Client打上标记（Leave或是Create）
         remoteInstances.forEach(remoteInstance -> {
             if (tempRemoteClients.containsKey(remoteInstance.getAddress())) {
                 tempRemoteClients.put(remoteInstance.getAddress(), Action.Leave);
@@ -189,12 +190,12 @@ public class RemoteClientManager implements Service {
 
         tempRemoteClients.forEach((address, action) -> {
             switch (action) {
-                case Leave:
+                case Leave: // 已存在的Client，直接复用即可
                     if (remoteClients.containsKey(address)) {
                         getFreeClients().add(remoteClients.get(address));
                     }
                     break;
-                case Create:
+                case Create: // 需要为新节点创建对应的Client
                     if (address.isSelf()) {
                         RemoteClient client = new SelfRemoteClient(moduleDefineHolder, address);
                         getFreeClients().add(client);
@@ -204,18 +205,20 @@ public class RemoteClientManager implements Service {
                         getFreeClients().add(client);
                     }
                     break;
+                // 注意:无用的Client不会被拷贝
             }
         });
 
         Collections.sort(getFreeClients());
-        switchCurrentClients();
+        switchCurrentClients(); // 切换usingClients字段
 
+        // 集群中有的节点被关闭了，其对应的Client也会被关闭
         tempRemoteClients.forEach((address, action) -> {
             if (Action.Close.equals(action) && remoteClients.containsKey(address)) {
                 remoteClients.get(address).close();
             }
         });
-
+        // 清空等待
         getFreeClients().clear();
     }
 

@@ -54,7 +54,9 @@ public class BufferStream<MESSAGE_TYPE extends GeneratedMessageV3> {
         FileUtils.forceMkdir(directory);
         tryLock(directory);
 
-        dataStream = new DataStream<>(directory, dataFileMaxSize, offsetFileMaxSize, parser, callBack);
+        dataStream = new DataStream<>(directory,
+                dataFileMaxSize, offsetFileMaxSize,
+                parser, callBack);
 
         if (cleanWhenRestart) {
             dataStream.clean();
@@ -98,7 +100,8 @@ public class BufferStream<MESSAGE_TYPE extends GeneratedMessageV3> {
         }
 
         public BufferStream<MESSAGE_TYPE> build() {
-            return new BufferStream<>(absolutePath, cleanWhenRestart, dataFileMaxSize, offsetFileMaxSize, parser, callBack);
+            return new BufferStream<>(absolutePath,
+                    cleanWhenRestart, dataFileMaxSize, offsetFileMaxSize, parser, callBack);
         }
 
         public Builder<MESSAGE_TYPE> cleanWhenRestart(boolean cleanWhenRestart) {

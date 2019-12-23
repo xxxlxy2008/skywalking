@@ -69,7 +69,7 @@ public class SegmentSpanListener implements FirstSpanListener, EntrySpanListener
         }
 
         long timeBucket = TimeBucket.getSecondTimeBucket(segmentCoreInfo.getStartTime());
-
+        // 将segmentCoreInfo中记录的数据全部拷贝到Segment中
         segment.setSegmentId(segmentCoreInfo.getSegmentId());
         segment.setServiceId(segmentCoreInfo.getServiceId());
         segment.setServiceInstanceId(segmentCoreInfo.getServiceInstanceId());
@@ -92,6 +92,7 @@ public class SegmentSpanListener implements FirstSpanListener, EntrySpanListener
     }
 
     @Override public void parseGlobalTraceId(UniqueId uniqueId, SegmentCoreInfo segmentCoreInfo) {
+        // 采样处理
         if (sampleStatus.equals(SAMPLE_STATUS.UNKNOWN) || sampleStatus.equals(SAMPLE_STATUS.IGNORE)) {
             if (sampler.shouldSample(uniqueId)) {
                 sampleStatus = SAMPLE_STATUS.SAMPLED;
@@ -103,7 +104,7 @@ public class SegmentSpanListener implements FirstSpanListener, EntrySpanListener
         if (sampleStatus.equals(SAMPLE_STATUS.IGNORE)) {
             return;
         }
-
+        // UniqueId拼成字符串，然后记录下来
         StringBuilder traceIdBuilder = new StringBuilder();
         for (int i = 0; i < uniqueId.getIdPartsList().size(); i++) {
             if (i == 0) {
@@ -112,7 +113,7 @@ public class SegmentSpanListener implements FirstSpanListener, EntrySpanListener
                 traceIdBuilder.append(".").append(uniqueId.getIdPartsList().get(i));
             }
         }
-        segment.setTraceId(traceIdBuilder.toString());
+        segment.setTraceId(traceIdBuilder.toString()); // 记录traceId
     }
 
     @Override public void build() {
@@ -124,7 +125,7 @@ public class SegmentSpanListener implements FirstSpanListener, EntrySpanListener
             return;
         }
 
-        if (entryEndpointId == 0) {
+        if (entryEndpointId == 0) { // firstEndPointId和entryEndpointId二选一
             segment.setEndpointId(firstEndpointId);
             segment.setEndpointName(serviceNameCacheService.get(firstEndpointId).getName());
         } else {

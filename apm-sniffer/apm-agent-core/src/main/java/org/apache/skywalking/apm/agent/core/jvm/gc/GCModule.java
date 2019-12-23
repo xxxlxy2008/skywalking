@@ -46,7 +46,8 @@ public abstract class GCModule implements GCMetricAccessor {
             GCPhrase phrase;
             long gcCount = 0;
             long gcTime = 0;
-            if (name.equals(getNewGCName())) {
+            // 下面根据 MXBean的名称判断具体的GC信息
+            if (name.equals(getNewGCName())) { // Young GC
                 phrase = GCPhrase.NEW;
                 long collectionCount = bean.getCollectionCount();
                 gcCount = collectionCount - lastYGCCount;
@@ -55,7 +56,7 @@ public abstract class GCModule implements GCMetricAccessor {
                 long time = bean.getCollectionTime();
                 gcTime = time - lastYGCCollectionTime;
                 lastYGCCollectionTime = time;
-            } else if (name.equals(getOldGCName())) {
+            } else if (name.equals(getOldGCName())) { // Old GC
                 phrase = GCPhrase.OLD;
                 long collectionCount = bean.getCollectionCount();
                 gcCount = collectionCount - lastOGCCount;

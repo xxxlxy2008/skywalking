@@ -38,8 +38,10 @@ public class RegisterEsDAO extends EsDAO implements IRegisterDAO {
     }
 
     @Override public RegisterSource get(String modelName, String id) throws IOException {
+        // 通过 ElasticSearchClient 发送 GetRequest 查询
         GetResponse response = getClient().get(modelName, id);
         if (response.isExists()) {
+            // ElasticSearchClient返回的查询结果是Map，将其转换成RegisterSource对象
             return storageBuilder.map2Data(response.getSource());
         } else {
             return null;
@@ -47,7 +49,9 @@ public class RegisterEsDAO extends EsDAO implements IRegisterDAO {
     }
 
     @Override public void forceInsert(String modelName, RegisterSource source) throws IOException {
+        // 先将 RegisterSource对象转换成Map，然后再转成XContentBuilder
         XContentBuilder builder = map2builder(storageBuilder.data2Map(source));
+        // 通过 ElasticSearchClient 发送 IndexRequest 请求完成写入
         getClient().forceInsert(modelName, source.id(), builder);
     }
 

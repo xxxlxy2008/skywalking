@@ -28,7 +28,8 @@ import org.apache.skywalking.apm.commons.datacarrier.buffer.*;
  * @author wusheng
  */
 public class MultipleChannelsConsumer extends Thread {
-    private volatile boolean running;
+    private volatile boolean running; // 线程状态
+    // 一个Channels以及其对应的IConsumer封装成一个Group实例
     private volatile ArrayList<Group> consumeTargets;
     private volatile long size;
     private final long consumeCycle;

@@ -81,24 +81,28 @@ public class SpanIdExchanger implements IdExchanger<SpanDecorator> {
             }
         }
 
+        // 这里的standardBuilder就是前面介绍的SpanDecorator，用于读写SpanObjectV2中的数据
         int peerId = standardBuilder.getPeerId();
+        // 检测该 SpanObjectV2 的 peer是否需要进行转换
         if (peerId == 0 && !Strings.isNullOrEmpty(standardBuilder.getPeer())) {
-            peerId = networkAddressInventoryRegister.getOrCreate(standardBuilder.getPeer(), buildServiceProperties(standardBuilder));
+            // 通过NetworkAddressInventoryRegister获取peer对应的id
+            peerId = networkAddressInventoryRegister.getOrCreate(standardBuilder.getPeer(),
+                    buildServiceProperties(standardBuilder));
 
             if (peerId == Const.NONE) {
                 if (logger.isDebugEnabled()) {
                     logger.debug("peer: {} in service: {} exchange failed", standardBuilder.getPeer(), serviceId);
                 }
 
-                exchanged = false;
-            } else {
+                exchanged = false; // 该peer字符串没有对应的id
+            } else { // 记录peerId，并清空peer字段
                 standardBuilder.toBuilder();
                 standardBuilder.setPeerId(peerId);
                 standardBuilder.setPeer(Const.EMPTY_STRING);
             }
         }
 
-        if (peerId != Const.NONE) {
+        if (peerId != Const.NONE) { // 更新peerId对应的NodeType
             int spanLayerValue = standardBuilder.getSpanLayerValue();
             NodeType nodeType = NodeType.fromSpanLayerValue(spanLayerValue);
             networkAddressInventoryRegister.update(peerId, nodeType);

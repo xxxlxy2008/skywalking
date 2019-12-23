@@ -41,13 +41,13 @@ import static net.bytebuddy.matcher.ElementMatchers.not;
  *
  * @author wusheng
  */
-public class PluginFinder {
+public class PluginFinder { // 通过插件类的查找以及拦截，都会用到这两个类
     private final Map<String, LinkedList<AbstractClassEnhancePluginDefine>> nameMatchDefine = new HashMap<String, LinkedList<AbstractClassEnhancePluginDefine>>();
     private final List<AbstractClassEnhancePluginDefine> signatureMatchDefine = new LinkedList<AbstractClassEnhancePluginDefine>();
 
     public PluginFinder(List<AbstractClassEnhancePluginDefine> plugins) {
         for (AbstractClassEnhancePluginDefine plugin : plugins) {
-            ClassMatch match = plugin.enhanceClass();
+            ClassMatch match = plugin.enhanceClass(); // 这个插件实际增强了的类
 
             if (match == null) {
                 continue;
@@ -58,7 +58,7 @@ public class PluginFinder {
                 LinkedList<AbstractClassEnhancePluginDefine> pluginDefines = nameMatchDefine.get(nameMatch.getClassName());
                 if (pluginDefines == null) {
                     pluginDefines = new LinkedList<AbstractClassEnhancePluginDefine>();
-                    nameMatchDefine.put(nameMatch.getClassName(), pluginDefines);
+                    nameMatchDefine.put(nameMatch.getClassName(), pluginDefines); // 待加强类名->插件
                 }
                 pluginDefines.add(plugin);
             } else {
@@ -84,18 +84,18 @@ public class PluginFinder {
         return matchedPlugins;
     }
 
-    public ElementMatcher<? super TypeDescription> buildMatch() {
-        ElementMatcher.Junction judge = new AbstractJunction<NamedElement>() {
+    public ElementMatcher<? super TypeDescription> buildMatch() { // 这个拦截，简单粗暴啊
+        ElementMatcher.Junction judge = new AbstractJunction<NamedElement>() { // Junction继承了ElementMatcher接口
             @Override
             public boolean matches(NamedElement target) {
-                return nameMatchDefine.containsKey(target.getActualName());
+                return nameMatchDefine.containsKey(target.getActualName()); // or
             }
         };
-        judge = judge.and(not(isInterface()));
+        judge = judge.and(not(isInterface())); // and 非接口
         for (AbstractClassEnhancePluginDefine define : signatureMatchDefine) {
             ClassMatch match = define.enhanceClass();
             if (match instanceof IndirectMatch) {
-                judge = judge.or(((IndirectMatch)match).buildJunction());
+                judge = judge.or(((IndirectMatch)match).buildJunction()); // or
             }
         }
         return new ProtectiveShieldMatcher(judge);

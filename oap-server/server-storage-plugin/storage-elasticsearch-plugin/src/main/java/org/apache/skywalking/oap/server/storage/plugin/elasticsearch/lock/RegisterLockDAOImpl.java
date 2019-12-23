@@ -41,26 +41,29 @@ public class RegisterLockDAOImpl extends EsDAO implements IRegisterLockDAO {
     }
 
     @Override public int getId(int scopeId, RegisterSource registerSource) {
-        String id = scopeId + "";
+        String id = scopeId + ""; // 拿到Document Id，例如，当前要为 ServiceInventory分配id，则该值为14
 
         int sequence = Const.NONE;
         try {
+            // 发送 GetRequest请求，获取 ServiceInventory对应的 Document
             GetResponse response = getClient().get(RegisterLockIndex.NAME, id);
             if (response.isExists()) {
                 Map<String, Object> source = response.getSource();
-
+                // 获取 sequence值
                 sequence = ((Number)source.get(RegisterLockIndex.COLUMN_SEQUENCE)).intValue();
+                // 获取 ServiceInventory对应 Document的版本号
                 long version = response.getVersion();
 
-                sequence++;
+                sequence++; // 递增sequence，即为该 ServiceInventory分配的唯一id
 
+                // 更新 ServiceInventory对应 Document的版本号，如果有其他节点已经更新了version，则这里会抛出异常
                 lock(id, sequence, version);
             }
         } catch (Throwable t) {
             logger.warn("Try to lock the row with the id {} failure, error message: {}", id, t.getMessage());
             return Const.NONE;
         }
-        return sequence;
+        return sequence; // 更新 version成功，则该 sequence未被其他节点占用，可以返回
     }
 
     private void lock(String id, int sequence, long version) throws IOException {

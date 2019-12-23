@@ -50,7 +50,14 @@ public class StorageModels implements IModelGetter, IModelSetter, IModelOverride
         List<ModelColumn> modelColumns = new LinkedList<>();
         retrieval(aClass, storage.getModelName(), modelColumns);
 
-        Model model = new Model(storage.getModelName(), modelColumns, storage.isCapableOfTimeSeries(), storage.isDeleteHistory(), scopeId, storage.getDownsampling());
+        Model model = new Model(
+                storage.getModelName(),  // 即@Stream注解中name的值，Index名称的一部分
+                modelColumns,  // 记录Index中所有Field的名称
+                storage.isCapableOfTimeSeries(), // 是否为时序数据
+                storage.isDeleteHistory(), // 如果是时序数据，一般会定时删除
+                scopeId,
+                storage.getDownsampling() // DownSampling
+        );
         models.add(model);
 
         return model;

@@ -27,10 +27,10 @@ import org.apache.skywalking.apm.commons.datacarrier.buffer.Buffer;
  * Created by wusheng on 2016/10/25.
  */
 public class ConsumerThread<T> extends Thread {
-    private volatile boolean running;
-    private IConsumer<T> consumer;
-    private List<DataSource> dataSources;
-    private long consumeCycle;
+    private volatile boolean running; // 当前线程运行状态
+    private IConsumer<T> consumer; // 消费者逻辑
+    private List<DataSource> dataSources; // 对Buffer的封装，从Buffer取数据
+    private long consumeCycle; // 两次执行 IConsumer.consume()方法的时间间隔
 
     ConsumerThread(String threadName, IConsumer<T> consumer, long consumeCycle) {
         super(threadName);
@@ -86,18 +86,20 @@ public class ConsumerThread<T> extends Thread {
         boolean hasData = false;
         LinkedList<T> consumeList = new LinkedList<T>();
         for (DataSource dataSource : dataSources) {
+            // DataSource.obtain()方法是对Buffer.obtain()方法的封装
             LinkedList<T> data = dataSource.obtain();
             if (data.size() == 0) {
                 continue;
             }
-            consumeList.addAll(data);
-            hasData = true;
+            consumeList.addAll(data); // 将所有待消费的数据转存到consumeList
+            hasData = true; // 标记此次消费是否有数据
         }
 
         if (consumeList.size() > 0) {
             try {
+                // 消费
                 consumer.consume(consumeList);
-            } catch (Throwable t) {
+            } catch (Throwable t) {// 消费过程中出现异常的时候
                 consumer.onError(consumeList, t);
             }
         }

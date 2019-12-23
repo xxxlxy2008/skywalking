@@ -31,13 +31,15 @@ class DataStreamWriter<MESSAGE_TYPE extends GeneratedMessageV3> {
 
     private static final Logger logger = LoggerFactory.getLogger(DataStreamWriter.class);
 
-    private final File directory;
-    private final Offset.WriteOffset writeOffset;
-
+    // 单个data文件的大小上限
     private final int dataFileMaxSize;
-
+    // data文件所在目录
+    private final File directory;
     private boolean initialized = false;
+    // 写入当前data文件的流，追加模式
     private FileOutputStream outputStream;
+    // 记录当前data文件的名称以及当前写入位置
+    private final Offset.WriteOffset writeOffset;
 
     DataStreamWriter(File directory, Offset.WriteOffset writeOffset, int dataFileMaxSize) {
         this.directory = directory;

@@ -43,7 +43,9 @@ public class JVMSourceDispatcher {
     }
 
     void sendMetric(int serviceInstanceId, long minuteTimeBucket, JVMMetric metrics) {
+        // 查询 JVM Metric对应的 ServiceInstanceInventory对象
         ServiceInstanceInventory serviceInstanceInventory = instanceInventoryCache.get(serviceInstanceId);
+        // 获取 JVM Metric对应的 serviceId
         int serviceId;
         if (Objects.nonNull(serviceInstanceInventory)) {
             serviceId = serviceInstanceInventory.getServiceId();
@@ -51,7 +53,7 @@ public class JVMSourceDispatcher {
             logger.warn("Can't found service by service instance id from cache, service instance id is: {}", serviceInstanceId);
             return;
         }
-
+        // JVM Metric数据发送到
         this.sendToCpuMetricProcess(serviceId, serviceInstanceId, minuteTimeBucket, metrics.getCpu());
         this.sendToMemoryMetricProcess(serviceId, serviceInstanceId, minuteTimeBucket, metrics.getMemoryList());
         this.sendToMemoryPoolMetricProcess(serviceId, serviceInstanceId, minuteTimeBucket, metrics.getMemoryPoolList());

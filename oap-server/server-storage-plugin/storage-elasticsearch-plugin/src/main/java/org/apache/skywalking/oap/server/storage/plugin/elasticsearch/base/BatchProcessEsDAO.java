@@ -50,7 +50,7 @@ public class BatchProcessEsDAO extends EsDAO implements IBatchDAO {
     }
 
     @Override public void batchPersistence(List<?> batchCollection) {
-        if (bulkProcessor == null) {
+        if (bulkProcessor == null) { // 创建 BulkProcessor，创建方式与前面"ElasticSearch基础入门"小节中展示的示例相同，不再重复
             this.bulkProcessor = getClient().createBulkProcessor(bulkActions, bulkSize, flushInterval, concurrentRequests);
         }
 
@@ -59,7 +59,7 @@ public class BatchProcessEsDAO extends EsDAO implements IBatchDAO {
         }
 
         if (CollectionUtils.isNotEmpty(batchCollection)) {
-            batchCollection.forEach(builder -> {
+            batchCollection.forEach(builder -> { // 遍历batchCollection，将Request添加到BulkProcessor中
                 if (builder instanceof IndexRequest) {
                     this.bulkProcessor.add((IndexRequest)builder);
                 }
@@ -69,6 +69,6 @@ public class BatchProcessEsDAO extends EsDAO implements IBatchDAO {
             });
         }
 
-        this.bulkProcessor.flush();
+        this.bulkProcessor.flush(); // 将上面添加的请求发送到ElasticSearch集群执行
     }
 }

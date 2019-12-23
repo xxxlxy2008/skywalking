@@ -36,7 +36,7 @@ public class TimeBucket {
     public static long getTimeBucket(long time, Downsampling downsampling) {
         Calendar calendar = Calendar.getInstance();
         calendar.setTimeInMillis(time);
-
+        // 获取时间戳对应的年月日时分秒
         long year = calendar.get(Calendar.YEAR);
         long month = calendar.get(Calendar.MONTH) + 1;
         long day = calendar.get(Calendar.DAY_OF_MONTH);
@@ -44,7 +44,7 @@ public class TimeBucket {
         long minute = calendar.get(Calendar.MINUTE);
         long second = calendar.get(Calendar.SECOND);
 
-        switch (downsampling) {
+        switch (downsampling) { // 根据指定的 DownSampling生成相应的时间窗口
             case Second:
                 return year * 10000000000L + month * 100000000 + day * 1000000 + hour * 10000 + minute * 100 + second;
             case Minute:

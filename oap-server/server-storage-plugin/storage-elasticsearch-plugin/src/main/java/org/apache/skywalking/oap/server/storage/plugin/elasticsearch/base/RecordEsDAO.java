@@ -40,7 +40,9 @@ public class RecordEsDAO extends EsDAO implements IRecordDAO<IndexRequest> {
 
     @Override public IndexRequest prepareBatchInsert(Model model, Record record) throws IOException {
         XContentBuilder builder = map2builder(storageBuilder.data2Map(record));
+        // 生成的是最终Index名称，这里的Index由前缀字符串(即"segment")+TimeBucket两部分构成
         String modelName = TimeSeriesUtils.timeSeries(model, record.getTimeBucket());
+        // 创建IndexRequest
         return getClient().prepareInsert(modelName, record.id(), builder);
     }
 }

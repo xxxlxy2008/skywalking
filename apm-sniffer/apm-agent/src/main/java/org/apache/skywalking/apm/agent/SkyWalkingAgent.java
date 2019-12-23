@@ -64,8 +64,8 @@ public class SkyWalkingAgent {
     public static void premain(String agentArgs, Instrumentation instrumentation) throws PluginException {
         final PluginFinder pluginFinder;
         try {
-            SnifferConfigInitializer.initialize(agentArgs);
-
+            SnifferConfigInitializer.initialize(agentArgs); // 配置文件、System.properties之列的初始化
+            // 查找并解析skywalking-plugin.def文件；AgentClassLoader加载插件；PluginFinder整理加载到的AbstractClassEnhancePluginDefine对象
             pluginFinder = new PluginFinder(new PluginBootstrap().loadPlugins());
 
         } catch (ConfigNotFoundException ce) {
@@ -78,7 +78,7 @@ public class SkyWalkingAgent {
             logger.error(e, "Skywalking agent initialized failure. Shutting down.");
             return;
         }
-
+        // 创建ByteBuddy对象
         final ByteBuddy byteBuddy = new ByteBuddy()
             .with(TypeValidation.of(Config.Agent.IS_OPEN_DEBUGGING_CLASS));
 
@@ -92,8 +92,8 @@ public class SkyWalkingAgent {
                     .or(nameContains(".asm."))
                     .or(nameStartsWith("sun.reflect"))
                     .or(allSkyWalkingAgentExcludeToolkit())
-                    .or(ElementMatchers.<TypeDescription>isSynthetic()))
-            .type(pluginFinder.buildMatch())
+                    .or(ElementMatchers.<TypeDescription>isSynthetic())) // synthetic编译器生成的
+            .type(pluginFinder.buildMatch()) // 设置需要拦截的类
             .transform(new Transformer(pluginFinder))
             .with(new Listener())
             .installOn(instrumentation);
@@ -106,7 +106,7 @@ public class SkyWalkingAgent {
 
         Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
             @Override public void run() {
-                ServiceManager.INSTANCE.shutdown();
+                ServiceManager.INSTANCE.shutdown(); // 关闭全部的BootService
             }
         }, "skywalking service shutdown thread"));
     }
@@ -120,7 +120,7 @@ public class SkyWalkingAgent {
 
         @Override
         public DynamicType.Builder<?> transform(DynamicType.Builder<?> builder, TypeDescription typeDescription,
-            ClassLoader classLoader, JavaModule module) {
+            ClassLoader classLoader, JavaModule module) { // 加载目标类的ClassLoader
             List<AbstractClassEnhancePluginDefine> pluginDefines = pluginFinder.find(typeDescription);
             if (pluginDefines.size() > 0) {
                 DynamicType.Builder<?> newBuilder = builder;

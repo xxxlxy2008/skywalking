@@ -54,7 +54,10 @@ import org.apache.skywalking.apm.util.RunnableWithExceptionProtection;
 @DefaultImplementor
 public class JVMService implements BootService, Runnable {
     private static final ILog logger = LogManager.getLogger(JVMService.class);
+    // JVMMetric记录了一些CPU、Memory、GC的监控信息
+    // 缓冲队列，收集到的JVM监控会暂时缓存到该队列中
     private LinkedBlockingQueue<JVMMetric> queue;
+    // 收集的JVM监控
     private volatile ScheduledFuture<?> collectMetricFuture;
     private volatile ScheduledFuture<?> sendMetricFuture;
     private Sender sender;
@@ -68,7 +71,7 @@ public class JVMService implements BootService, Runnable {
 
     @Override
     public void boot() throws Throwable {
-        collectMetricFuture = Executors
+        collectMetricFuture = Executors //
             .newSingleThreadScheduledExecutor(new DefaultNamedThreadFactory("JVMService-produce"))
             .scheduleAtFixedRate(new RunnableWithExceptionProtection(this, new RunnableWithExceptionProtection.CallbackWhenException() {
                 @Override public void handle(Throwable t) {
@@ -101,16 +104,19 @@ public class JVMService implements BootService, Runnable {
         if (RemoteDownstreamConfig.Agent.SERVICE_ID != DictionaryUtil.nullValue()
             && RemoteDownstreamConfig.Agent.SERVICE_INSTANCE_ID != DictionaryUtil.nullValue()
         ) {
+            // 首先检查 ServiceId 和InstanceId
             long currentTimeMillis = System.currentTimeMillis();
-            try {
+            try { // 通过JMX获取CPU、Memory、GC的信息，然后组装成JVMMetric
                 JVMMetric.Builder jvmBuilder = JVMMetric.newBuilder();
                 jvmBuilder.setTime(currentTimeMillis);
+                // 通过 MXBean获取 CPU、内存以及Gc相关的信息，并填充到 JVMMetric
                 jvmBuilder.setCpu(CPUProvider.INSTANCE.getCpuMetric());
                 jvmBuilder.addAllMemory(MemoryProvider.INSTANCE.getMemoryMetricList());
                 jvmBuilder.addAllMemoryPool(MemoryPoolProvider.INSTANCE.getMemoryPoolMetricsList());
                 jvmBuilder.addAllGc(GCProvider.INSTANCE.getGCList());
 
                 JVMMetric jvmMetric = jvmBuilder.build();
+                // 将JVMMetric写入到queue队列中
                 if (!queue.offer(jvmMetric)) {
                     queue.poll();
                     queue.offer(jvmMetric);
@@ -134,10 +140,12 @@ public class JVMService implements BootService, Runnable {
                     try {
                         JVMMetricCollection.Builder builder = JVMMetricCollection.newBuilder();
                         LinkedList<JVMMetric> buffer = new LinkedList<JVMMetric>();
+                        // 将 queue中的监控信息全部写入到 buffer
                         queue.drainTo(buffer);
                         if (buffer.size() > 0) {
                             builder.addAllMetrics(buffer);
                             builder.setServiceInstanceId(RemoteDownstreamConfig.Agent.SERVICE_INSTANCE_ID);
+                            // 将 buffer中的监控数据发送到 OAP集群
                             stub.collect(builder.build());
                         }
                     } catch (Throwable t) {

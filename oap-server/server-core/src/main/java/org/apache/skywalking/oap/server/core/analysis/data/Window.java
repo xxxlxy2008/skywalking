@@ -24,7 +24,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @author peng-yongsheng
  */
 public abstract class Window<DATA> {
-
+    // 用于控制当前是否
     private AtomicInteger windowSwitch = new AtomicInteger(0);
 
     private SWCollection<DATA> pointer;
@@ -51,20 +51,23 @@ public abstract class Window<DATA> {
     public abstract SWCollection<DATA> collectionInstance();
 
     public boolean trySwitchPointer() {
+        // 检查 windowSwitch字段，以及last队列是否处于可读状态
         return windowSwitch.incrementAndGet() == 1 && !getLast().isReading();
     }
 
     public void trySwitchPointerFinally() {
+        // 在 trySwitchPointer()方法尝试之后，需要在finally代码块中恢复windowSwitch字段的值，为下次检查做准备
         windowSwitch.addAndGet(-1);
     }
 
     public void switchPointer() {
+        // 根据 pointer当前的指向，进行修改
         if (pointer == windowDataA) {
             pointer = windowDataB;
         } else {
             pointer = windowDataA;
         }
-        getLast().reading();
+        getLast().reading(); // 修改 last队列的状态
     }
 
     SWCollection<DATA> getCurrentAndWriting() {

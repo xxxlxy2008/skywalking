@@ -90,7 +90,7 @@ public class ContextManager implements BootService {
         SamplingService samplingService = ServiceManager.INSTANCE.findService(SamplingService.class);
         AbstractSpan span;
         AbstractTracerContext context;
-        if (carrier != null && carrier.isValid()) {
+        if (carrier != null && carrier.isValid()) { // 检测 ContextCarrier是否合法，其实就是检查它的8个核心字段是否填充好了
             samplingService.forceSampled();
             context = getOrCreate(operationName, true);
             span = context.createEntrySpan(operationName);

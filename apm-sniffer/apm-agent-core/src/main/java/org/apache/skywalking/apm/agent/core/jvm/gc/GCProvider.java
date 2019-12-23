@@ -34,9 +34,11 @@ public enum GCProvider {
     private List<GarbageCollectorMXBean> beans;
 
     GCProvider() {
+        // 获取GC相关的MXBean
         beans = ManagementFactory.getGarbageCollectorMXBeans();
         for (GarbageCollectorMXBean bean : beans) {
             String name = bean.getName();
+            // 解析MXBean的名称，创建相应的GCMetricAccessor对象
             GCMetricAccessor accessor = findByBeanName(name);
             if (accessor != null) {
                 metricAccessor = accessor;

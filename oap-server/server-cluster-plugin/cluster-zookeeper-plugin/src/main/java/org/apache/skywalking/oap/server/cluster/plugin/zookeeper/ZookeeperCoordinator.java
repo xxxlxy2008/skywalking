@@ -48,22 +48,21 @@ public class ZookeeperCoordinator implements ClusterRegister, ClusterNodesQuery 
             if (needUsingInternalAddr()) {
                 remoteInstance = new RemoteInstance(new Address(config.getInternalComHost(), config.getInternalComPort(), true));
             }
-
+            // 将 RemoteInstance对象转换成 ServiceInstance对象
             ServiceInstance<RemoteInstance> thisInstance = ServiceInstance.<RemoteInstance>builder()
                 .name(remoteNamePath)
-                .id(UUID.randomUUID().toString())
+                .id(UUID.randomUUID().toString()) // id随机生成
                 .address(remoteInstance.getAddress().getHost())
                 .port(remoteInstance.getAddress().getPort())
                 .payload(remoteInstance)
                 .build();
-
+            // 将 ServiceInstance写入到 Zookeeper中
             serviceDiscovery.registerService(thisInstance);
-
+            // 创建 ServiceCache，后续读取Zk的时候用
             serviceCache = serviceDiscovery.serviceCacheBuilder()
                 .name(remoteNamePath)
                 .build();
-
-            serviceCache.start();
+            serviceCache.start(); // 启动 ServiceCache
 
             this.selfAddress = remoteInstance.getAddress();
             TelemetryRelatedContext.INSTANCE.setId(selfAddress.toString());
@@ -75,8 +74,9 @@ public class ZookeeperCoordinator implements ClusterRegister, ClusterNodesQuery 
     @Override public List<RemoteInstance> queryRemoteNodes() {
         List<RemoteInstance> remoteInstanceDetails = new ArrayList<>(20);
         if (Objects.nonNull(serviceCache)) {
+            // 从 ServiceCache中查询全部的 ServiceInstance
             List<ServiceInstance<RemoteInstance>> serviceInstances = serviceCache.getInstances();
-
+            // 遍历全部 ServiceInstance，将表示当前节点的 ServiceInstance打上isSelf=true的标记
             serviceInstances.forEach(serviceInstance -> {
                 RemoteInstance instance = serviceInstance.getPayload();
                 if (instance.getAddress().equals(selfAddress)) {

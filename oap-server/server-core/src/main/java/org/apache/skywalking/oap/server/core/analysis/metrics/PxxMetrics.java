@@ -52,19 +52,20 @@ public abstract class PxxMetrics extends Metrics implements IntValueHolder {
 
     @Entrance
     public final void combine(@SourceFrom int value, @Arg int precision) {
-        this.precision = precision;
+        this.precision = precision; // 确定监控精度，默认为10，即10毫秒级别
 
         this.indexCheckAndInit();
+        // 初始化detailIndex这个Map
 
         int index = value / precision;
         IntKeyLongValue element = detailIndex.get(index);
-        if (element == null) {
+        if (element == null) { // 创建IntKeyLongValue对象
             element = new IntKeyLongValue();
             element.setKey(index);
             element.setValue(1);
-            addElement(element);
+            addElement(element); // 记录到detailGroup和detailIndex集合中
         } else {
-            element.addValue(1);
+            element.addValue(1); // 递增value
         }
     }
 
@@ -89,12 +90,15 @@ public abstract class PxxMetrics extends Metrics implements IntValueHolder {
 
     @Override
     public final void calculate() {
-        Collections.sort(detailGroup);
+        Collections.sort(detailGroup); // 排序detailGroup
+        // 计算该窗口监控点的总个数
         int total = detailGroup.stream().mapToInt(element -> (int)element.getValue()).sum();
+        // 查找指定分位数的位置
         int roof = Math.round(total * percentileRank * 1.0f / 100);
 
         int count = 0;
         for (IntKeyLongValue element : detailGroup) {
+            // 累加监控点个数，直至到达(或超过)上面的roof值，此时的监控值即为指定分位数监控值
             count += element.getValue();
             if (count >= roof) {
                 value = element.getKey() * precision;
@@ -109,7 +113,7 @@ public abstract class PxxMetrics extends Metrics implements IntValueHolder {
     }
 
     private void indexCheckAndInit() {
-        if (detailIndex == null) {
+        if (detailIndex == null) { // 初始化
             detailIndex = new HashMap<>();
             detailGroup.forEach(element -> detailIndex.put(element.getKey(), element));
         }

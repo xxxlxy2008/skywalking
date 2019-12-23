@@ -108,11 +108,13 @@ public class ServiceInventoryRegister implements IServiceInventoryRegister {
     }
 
     @Override public void heartbeat(int serviceId, long heartBeatTime) {
+        // 查询相应 ServiceInventory
         ServiceInventory serviceInventory = getServiceInventoryCache().get(serviceId);
         if (Objects.nonNull(serviceInventory)) {
             serviceInventory = serviceInventory.getClone();
+            // 更新heartbeatTime字段
             serviceInventory.setHeartbeatTime(heartBeatTime);
-
+            // 交给 InventoryStreamProcessor 完成更新
             InventoryStreamProcessor.getInstance().in(serviceInventory);
         } else {
             logger.warn("Service {} heartbeat, but not found in storage.", serviceId);

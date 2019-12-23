@@ -101,33 +101,33 @@ public class MetricsPersistentWorker extends PersistenceWorker<Metrics, MergeDat
     @Override public List<Object> prepareBatch(MergeDataCache<Metrics> cache) {
         List<Object> batchCollection = new LinkedList<>();
         cache.getLast().collection().forEach(data -> {
-            if (Objects.nonNull(nextExportWorker)) {
+            if (Objects.nonNull(nextExportWorker)) { // 如果需要导出，会将监控发往ExportWorker
                 ExportEvent event = new ExportEvent(data, ExportEvent.EventType.INCREMENT);
                 nextExportWorker.in(event);
             }
 
             Metrics dbData = null;
-            try {
+            try { // 先查询监控数据，底层通过id查询相应的 Document
                 dbData = metricsDAO.get(model, data);
             } catch (Throwable t) {
                 logger.error(t.getMessage(), t);
             }
             try {
                 if (nonNull(dbData)) {
-                    data.combine(dbData);
+                    data.combine(dbData); // 已存在则进行合并
                     data.calculate();
-
+                    // 产生相应的 UpdateRequest请求，并添加到batchCollection集合中
                     batchCollection.add(metricsDAO.prepareBatchUpdate(model, data));
-                } else {
+                } else { // 产生相应的 IndexRequest请求，并添加到batchCollection集合中
                     batchCollection.add(metricsDAO.prepareBatchInsert(model, data));
                 }
 
                 if (Objects.nonNull(nextAlarmWorker)) {
-                    nextAlarmWorker.in(data);
+                    nextAlarmWorker.in(data); // 发给 AlarmWorker进行报警
                 }
                 if (Objects.nonNull(nextExportWorker)) {
                     ExportEvent event = new ExportEvent(data, ExportEvent.EventType.TOTAL);
-                    nextExportWorker.in(event);
+                    nextExportWorker.in(event); // 再次发给 ExportWorker
                 }
             } catch (Throwable t) {
                 logger.error(t.getMessage(), t);
@@ -138,16 +138,17 @@ public class MetricsPersistentWorker extends PersistenceWorker<Metrics, MergeDat
     }
 
     @Override public void cacheData(Metrics input) {
-        mergeDataCache.writing();
+        mergeDataCache.writing(); // 将 lockedMergeDataCollection指向 current队列，并设置其 writing标记
         if (mergeDataCache.containsKey(input)) {
+            // 存在重复的监控数据数据，则进行合并
             Metrics metrics = mergeDataCache.get(input);
             metrics.combine(input);
-            metrics.calculate();
+            metrics.calculate(); // 重新计算该监控值
         } else {
-            input.calculate();
+            input.calculate(); // 第一次计算该监控值
             mergeDataCache.put(input);
         }
-
+        // 更新 current队列的 writing状态，然后清空lockedMergeDataCollection
         mergeDataCache.finishWriting();
     }
 

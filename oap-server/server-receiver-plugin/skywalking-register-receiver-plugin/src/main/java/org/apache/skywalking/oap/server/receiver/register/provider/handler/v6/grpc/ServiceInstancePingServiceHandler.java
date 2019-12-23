@@ -50,10 +50,13 @@ public class ServiceInstancePingServiceHandler extends ServiceInstancePingGrpc.S
     }
 
     @Override public void doPing(ServiceInstancePingPkg request, StreamObserver<Commands> responseObserver) {
+        // 从心跳请求中获取 serviceInstanceId
         int serviceInstanceId = request.getServiceInstanceId();
+        // 心跳请求的发送时间
         long heartBeatTime = request.getTime();
+        // 更新该 ServiceInstance的心跳时间（即底层 service_instance_inventory索引中相应 Document的 heartbeat_time字段）
         serviceInstanceInventoryRegister.heartbeat(serviceInstanceId, heartBeatTime);
-
+        // 根据 serviceInstanceId获取 serviceId，并更新该 Service的心跳时间（即底层 service_inventory索引中相应 Document的 heartbeat_time字段））
         ServiceInstanceInventory serviceInstanceInventory = serviceInstanceInventoryCache.get(serviceInstanceId);
         if (Objects.nonNull(serviceInstanceInventory)) {
             serviceInventoryRegister.heartbeat(serviceInstanceInventory.getServiceId(), heartBeatTime);

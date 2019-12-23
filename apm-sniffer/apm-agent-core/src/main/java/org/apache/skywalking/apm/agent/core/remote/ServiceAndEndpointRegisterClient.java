@@ -56,13 +56,13 @@ public class ServiceAndEndpointRegisterClient implements BootService, Runnable, 
     private static final ILog logger = LogManager.getLogger(ServiceAndEndpointRegisterClient.class);
     private static String INSTANCE_UUID;
 
-    private volatile GRPCChannelStatus status = GRPCChannelStatus.DISCONNECT;
+    private volatile GRPCChannelStatus status = GRPCChannelStatus.DISCONNECT; // 当前连接是否状态
     private volatile RegisterGrpc.RegisterBlockingStub registerBlockingStub;
     private volatile ServiceInstancePingGrpc.ServiceInstancePingBlockingStub serviceInstancePingStub;
     private volatile ScheduledFuture<?> applicationRegisterFuture;
 
     @Override
-    public void statusChanged(GRPCChannelStatus status) {
+    public void statusChanged(GRPCChannelStatus status) { // 根据连接状态，修改registerBlockingStub、serviceInstancePingStub
         if (GRPCChannelStatus.CONNECTED.equals(status)) {
             Channel channel = ServiceManager.INSTANCE.findService(GRPCChannelManager.class).getChannel();
             registerBlockingStub = RegisterGrpc.newBlockingStub(channel);
@@ -76,15 +76,15 @@ public class ServiceAndEndpointRegisterClient implements BootService, Runnable, 
 
     @Override
     public void prepare() throws Throwable {
-        ServiceManager.INSTANCE.findService(GRPCChannelManager.class).addChannelListener(this);
+        ServiceManager.INSTANCE.findService(GRPCChannelManager.class).addChannelListener(this); // 注册Listener
 
         INSTANCE_UUID = StringUtil.isEmpty(Config.Agent.INSTANCE_UUID) ? UUID.randomUUID().toString()
-            .replaceAll("-", "") : Config.Agent.INSTANCE_UUID;
+            .replaceAll("-", "") : Config.Agent.INSTANCE_UUID; // 生成Agent唯一表示
     }
 
     @Override
     public void boot() throws Throwable {
-        applicationRegisterFuture = Executors
+        applicationRegisterFuture = Executors // 定时任务
             .newSingleThreadScheduledExecutor(new DefaultNamedThreadFactory("ServiceAndEndpointRegisterClient"))
             .scheduleAtFixedRate(new RunnableWithExceptionProtection(this, new RunnableWithExceptionProtection.CallbackWhenException() {
                 @Override
@@ -111,12 +111,12 @@ public class ServiceAndEndpointRegisterClient implements BootService, Runnable, 
             shouldTry = false;
             try {
                 if (RemoteDownstreamConfig.Agent.SERVICE_ID == DictionaryUtil.nullValue()) {
-                    if (registerBlockingStub != null) {
+                    if (registerBlockingStub != null) { // 调用doServiceRegister，参数是Services
                         ServiceRegisterMapping serviceRegisterMapping = registerBlockingStub.doServiceRegister(
                             Services.newBuilder().addServices(Service.newBuilder().setServiceName(Config.Agent.SERVICE_NAME)).build());
-                        if (serviceRegisterMapping != null) {
+                        if (serviceRegisterMapping != null) { // ServiceRegisterMapping是KV
                             for (KeyIntValuePair registered : serviceRegisterMapping.getServicesList()) {
-                                if (Config.Agent.SERVICE_NAME.equals(registered.getKey())) {
+                                if (Config.Agent.SERVICE_NAME.equals(registered.getKey())) { // 每个SERVICE_NAME生成一个SERVICE_ID
                                     RemoteDownstreamConfig.Agent.SERVICE_ID = registered.getValue();
                                     shouldTry = true;
                                 }
@@ -126,7 +126,7 @@ public class ServiceAndEndpointRegisterClient implements BootService, Runnable, 
                 } else {
                     if (registerBlockingStub != null) {
                         if (RemoteDownstreamConfig.Agent.SERVICE_INSTANCE_ID == DictionaryUtil.nullValue()) {
-
+                            // doServiceInstanceRegister() SERVICE_ID换SERVICE_INSTANCE_ID
                             ServiceInstanceRegisterMapping instanceMapping = registerBlockingStub.doServiceInstanceRegister(ServiceInstances.newBuilder()
                                 .addInstances(
                                     ServiceInstance.newBuilder()
@@ -143,7 +143,7 @@ public class ServiceAndEndpointRegisterClient implements BootService, Runnable, 
                                     }
                                 }
                             }
-                        } else {
+                        } else { // 心跳信息
                             serviceInstancePingStub.doPing(ServiceInstancePingPkg.newBuilder()
                                 .setServiceInstanceId(RemoteDownstreamConfig.Agent.SERVICE_INSTANCE_ID)
                                 .setTime(System.currentTimeMillis())

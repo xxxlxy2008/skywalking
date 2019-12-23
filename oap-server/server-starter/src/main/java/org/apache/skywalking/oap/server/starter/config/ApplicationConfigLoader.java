@@ -54,7 +54,9 @@ public class ApplicationConfigLoader implements ConfigLoader<ApplicationConfigur
     @SuppressWarnings("unchecked")
     private void loadConfig(ApplicationConfiguration configuration) throws ConfigFileNotFoundException {
         try {
+            // 加载application.yml配置文件
             Reader applicationReader = ResourceUtils.read("application.yml");
+            // 按照yml文件的格式解析配置文件
             Map<String, Map<String, Map<String, ?>>> moduleConfig = yaml.loadAs(applicationReader, Map.class);
             if (CollectionUtils.isNotEmpty(moduleConfig)) {
                 moduleConfig.forEach((moduleName, providerConfig) -> {

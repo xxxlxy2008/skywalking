@@ -76,8 +76,8 @@ public class MetricsAggregateWorker extends AbstractWorker<Metrics> {
     }
 
     private void onWork(Metrics metrics) {
-        aggregationCounter.inc();
-        aggregate(metrics);
+        aggregationCounter.inc(); // 记录监控，底层按照 Promethus的格式记录，后面详细分析
+        aggregate(metrics); // 进行
 
         if (metrics.getEndOfBatchContext().isEndOfBatch()) {
             if (shouldSend()) {
@@ -97,7 +97,9 @@ public class MetricsAggregateWorker extends AbstractWorker<Metrics> {
     }
 
     private void sendToNext() {
+        // 首先进行队列切换，之后会设置 last队列的 reading状态
         mergeDataCache.switchPointer();
+        // 此时可能其他的 Consumer线程还在写入 last队列，需要等待写入完成
         while (mergeDataCache.getLast().isWriting()) {
             try {
                 Thread.sleep(10);
@@ -105,7 +107,7 @@ public class MetricsAggregateWorker extends AbstractWorker<Metrics> {
                 logger.error(e.getMessage(), e);
             }
         }
-
+        // 开始读取 last队列中的全部 Metrics数据并发送到下一个 worker处理
         mergeDataCache.getLast().collection().forEach(data -> {
             if (logger.isDebugEnabled()) {
                 logger.debug(data.toString());
@@ -113,17 +115,18 @@ public class MetricsAggregateWorker extends AbstractWorker<Metrics> {
 
             nextWorker.in(data);
         });
+        // 读取完成后，清空 last队列以及其 reading状态
         mergeDataCache.finishReadingLast();
     }
 
     private void aggregate(Metrics metrics) {
-        mergeDataCache.writing();
-        if (mergeDataCache.containsKey(metrics)) {
+        mergeDataCache.writing(); // 将 lockedMergeDataCollection指向 current队列，并设置其 writing标记
+        if (mergeDataCache.containsKey(metrics)) { // 存在重复的监控数据数据，则进行合并
             mergeDataCache.get(metrics).combine(metrics);
-        } else {
+        } else { //
             mergeDataCache.put(metrics);
         }
-
+        // 清理 current队列的 writing标记，之后清理 lockedMergeDataCollection
         mergeDataCache.finishWriting();
     }
 

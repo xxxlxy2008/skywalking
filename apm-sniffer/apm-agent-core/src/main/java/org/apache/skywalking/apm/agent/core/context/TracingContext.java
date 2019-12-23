@@ -99,14 +99,14 @@ public class TracingContext implements AbstractTracerContext {
         if (!span.isExit()) {
             throw new IllegalStateException("Inject can be done only in Exit Span");
         }
-
+        // 检测当前活跃的 Span是否为 ExitSpan，否则会抛出异常(略)
         WithPeerInfo spanWithPeer = (WithPeerInfo)span;
         String peer = spanWithPeer.getPeer();
         int peerId = spanWithPeer.getPeerId();
-
+        // 设置 TraceSegmentId
         carrier.setTraceSegmentId(this.segment.getTraceSegmentId());
-        carrier.setSpanId(span.getSpanId());
-
+        carrier.setSpanId(span.getSpanId()); // 设置 SpanId
+        // 设置 service_instance_id
         carrier.setParentServiceInstanceId(segment.getApplicationInstanceId());
 
         if (DictionaryUtil.isNull(peerId)) {
@@ -128,9 +128,9 @@ public class TracingContext implements AbstractTracerContext {
             operationId = firstSpan.getOperationId();
             operationName = firstSpan.getOperationName();
             entryApplicationInstanceId = this.segment.getApplicationInstanceId();
-        }
+        } // 设置 entryApplicationInstanceId
         carrier.setEntryServiceInstanceId(entryApplicationInstanceId);
-
+        // 设置 operationName或 operationId
         if (operationId == DictionaryUtil.nullValue()) {
             if (!StringUtil.isEmpty(operationName)) {
                 carrier.setEntryEndpointName(operationName);
@@ -138,14 +138,14 @@ public class TracingContext implements AbstractTracerContext {
         } else {
             carrier.setEntryEndpointId(operationId);
         }
-
+        // 设置 parentEndpointId或是 parentEndpointName
         int parentOperationId = first().getOperationId();
         if (parentOperationId == DictionaryUtil.nullValue()) {
             carrier.setParentEndpointName(first().getOperationName());
         } else {
             carrier.setParentEndpointId(parentOperationId);
         }
-
+        // 设置 primaryDistributedTraceId，只会从 relatedGlobalTraces集合中取第一个
         carrier.setDistributedTraceIds(this.segment.getRelatedGlobalTraces());
     }
 
@@ -238,12 +238,12 @@ public class TracingContext implements AbstractTracerContext {
      */
     @Override
     public AbstractSpan createEntrySpan(final String operationName) {
-        if (isLimitMechanismWorking()) {
-            NoopSpan span = new NoopSpan();
+        if (isLimitMechanismWorking()) { // 默认，每个 TraceSegment只能放300个 Span，超过了就每30s打一条 WARN日志
+            NoopSpan span = new NoopSpan(); // 超过300就放 NoopSpan
             return push(span);
         }
         AbstractSpan entrySpan;
-        final AbstractSpan parentSpan = peek();
+        final AbstractSpan parentSpan = peek(); // 获取 activeSpanStack集合中的最后一个 Span，就是父Span
         final int parentSpanId = parentSpan == null ? -1 : parentSpan.getSpanId();
         if (parentSpan != null && parentSpan.isEntry()) {
             entrySpan = (AbstractTracingSpan)DictionaryManager.findEndpointSection()
@@ -256,7 +256,7 @@ public class TracingContext implements AbstractTracerContext {
                     @Override public Object doProcess() {
                         return parentSpan.setOperationName(operationName);
                     }
-                });
+                });// 更新 operationId(或operationName)，然后重新 start(前面提到过，start()方法会重置其他字段)
             return entrySpan.start();
         } else {
             entrySpan = (AbstractTracingSpan)DictionaryManager.findEndpointSection()
@@ -269,7 +269,7 @@ public class TracingContext implements AbstractTracerContext {
                     @Override public Object doProcess() {
                         return new EntrySpan(spanIdGenerator++, parentSpanId, operationName);
                     }
-                });
+                }); // 新建 EntrySpan对象，并调用 start()方法
             entrySpan.start();
             return push(entrySpan);
         }
@@ -286,13 +286,13 @@ public class TracingContext implements AbstractTracerContext {
         if (isLimitMechanismWorking()) {
             NoopSpan span = new NoopSpan();
             return push(span);
-        }
-        AbstractSpan parentSpan = peek();
+        }// 检测当前 TraceSegment中的 Span个数
+        AbstractSpan parentSpan = peek(); // 获取父 Span以及父 Span的Id
         final int parentSpanId = parentSpan == null ? -1 : parentSpan.getSpanId();
         /**
          * From v6.0.0-beta, local span doesn't do op name register.
          * All op name register is related to entry and exit spans only.
-         */
+         */ // 直接创建 LocalSpan对象并调用其 start()方法
         AbstractTracingSpan span = new LocalSpan(spanIdGenerator++, parentSpanId, operationName);
         span.start();
         return push(span);
@@ -388,11 +388,11 @@ public class TracingContext implements AbstractTracerContext {
      */
     @Override
     public boolean stopSpan(AbstractSpan span) {
-        AbstractSpan lastSpan = peek();
-        if (lastSpan == span) {
+        AbstractSpan lastSpan = peek(); // 获取当前活跃的 Span对象
+        if (lastSpan == span) { // 只能关闭当前活跃 Span对象，否则抛异常
             if (lastSpan instanceof AbstractTracingSpan) {
                 AbstractTracingSpan toFinishSpan = (AbstractTracingSpan)lastSpan;
-                if (toFinishSpan.finish(segment)) {
+                if (toFinishSpan.finish(segment)) { // 尝试关闭 Span，当完全关闭之后，会将其从 activeSpanStack集合中删除
                     pop();
                 }
             } else {
@@ -401,7 +401,7 @@ public class TracingContext implements AbstractTracerContext {
         } else {
             throw new IllegalStateException("Stopping the unexpected span = " + span);
         }
-
+        // TraceSegment中全部 Span都关闭(且异步状态的 Span也关闭了)，则当前 TraceSegment也会关闭
         if (checkFinishConditions()) {
             finish();
         }

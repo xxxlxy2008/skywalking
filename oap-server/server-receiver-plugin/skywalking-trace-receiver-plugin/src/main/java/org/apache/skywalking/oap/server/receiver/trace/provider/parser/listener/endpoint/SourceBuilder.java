@@ -27,24 +27,31 @@ import org.apache.skywalking.oap.server.core.source.*;
  */
 class SourceBuilder {
 
+    // 上游系统的service信息、serviceInstance信息以及Endpoint信息
     @Getter @Setter private int sourceServiceId;
     @Getter @Setter private String sourceServiceName;
     @Getter @Setter private int sourceServiceInstanceId;
     @Getter @Setter private String sourceServiceInstanceName;
     @Getter @Setter private int sourceEndpointId;
     @Getter @Setter private String sourceEndpointName;
+    // 下游系统的service信息、serviceInstance信息以及Endpoint信息
     @Getter @Setter private int destServiceId;
     @Getter @Setter private String destServiceName;
     @Getter @Setter private int destServiceInstanceId;
     @Getter @Setter private String destServiceInstanceName;
     @Getter @Setter private int destEndpointId;
     @Getter @Setter private String destEndpointName;
+    // 当前系统的组件类型
     @Getter @Setter private int componentId;
+    // 在当前系统中的耗时
     @Getter @Setter private int latency;
+    // 当前系统是否发生Error
     @Getter @Setter private boolean status;
-    @Getter @Setter private int responseCode;
-    @Getter @Setter private RequestType type;
+    @Getter @Setter private int responseCode; // 默认为0
+    @Getter @Setter private RequestType type; // 请求类型
+    // 调用关系中的角色，是调用方(Client)、被调用方(Server)还是代理(Proxy)
     @Getter @Setter private DetectPoint detectPoint;
+    // TraceSegment起始时间所在分钟级时间窗口
     @Getter @Setter private long timeBucket;
 
     All toAll() {

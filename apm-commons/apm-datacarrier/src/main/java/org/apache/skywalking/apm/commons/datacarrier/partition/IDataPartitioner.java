@@ -25,6 +25,7 @@ import org.apache.skywalking.apm.commons.datacarrier.buffer.BufferStrategy;
  * Created by wusheng on 2016/10/25.
  */
 public interface IDataPartitioner<T> {
+    // 分区函数，返回值即为选择的分区下标
     int partition(int total, T data);
 
     /**
@@ -32,5 +33,5 @@ public interface IDataPartitioner<T> {
      *
      * Less or equal 1, means not support retry.
      */
-    int maxRetryCount();
+    int maxRetryCount();// 返回值表示重试次数，只在IF_POSSIBLE策略下有效
 }

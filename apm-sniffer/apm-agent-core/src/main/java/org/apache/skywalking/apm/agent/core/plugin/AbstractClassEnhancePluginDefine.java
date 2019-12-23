@@ -47,8 +47,8 @@ public abstract class AbstractClassEnhancePluginDefine {
      */
     public DynamicType.Builder<?> define(TypeDescription typeDescription,
                                          DynamicType.Builder<?> builder, ClassLoader classLoader, EnhanceContext context) throws PluginException {
-        String interceptorDefineClassName = this.getClass().getName();
-        String transformClassName = typeDescription.getTypeName();
+        String interceptorDefineClassName = this.getClass().getName(); // 插件类名
+        String transformClassName = typeDescription.getTypeName(); // 目标类名
         if (StringUtil.isEmpty(transformClassName)) {
             logger.warn("classname of being intercepted is not defined by {}.", interceptorDefineClassName);
             return null;
@@ -59,10 +59,10 @@ public abstract class AbstractClassEnhancePluginDefine {
         /**
          * find witness classes for enhance class
          */
-        String[] witnessClasses = witnessClasses();
+        String[] witnessClasses = witnessClasses(); // 获取
         if (witnessClasses != null) {
             for (String witnessClass : witnessClasses) {
-                if (!WitnessClassFinder.INSTANCE.exist(witnessClass, classLoader)) {
+                if (!WitnessClassFinder.INSTANCE.exist(witnessClass, classLoader)) { // 判断指定类加载器中，是否存在witnessClass
                     logger.warn("enhance class {} by plugin {} is not working. Because witness class {} is not existed.", transformClassName, interceptorDefineClassName,
                         witnessClass);
                     return null;

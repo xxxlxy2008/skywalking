@@ -38,7 +38,7 @@ public enum InstrumentDebuggingClass {
     private static final ILog logger = LogManager.getLogger(InstrumentDebuggingClass.class);
     private File debuggingClassesRootPath;
 
-    public void log(TypeDescription typeDescription, DynamicType dynamicType) {
+    public void log(TypeDescription typeDescription, DynamicType dynamicType) { // 将生成的字节码持久化
         if (!Config.Agent.IS_OPEN_DEBUGGING_CLASS) {
             return;
         }

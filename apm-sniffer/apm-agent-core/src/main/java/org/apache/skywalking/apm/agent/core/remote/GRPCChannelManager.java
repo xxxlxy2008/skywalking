@@ -33,12 +33,12 @@ import org.apache.skywalking.apm.util.RunnableWithExceptionProtection;
 public class GRPCChannelManager implements BootService, Runnable {
     private static final ILog logger = LogManager.getLogger(GRPCChannelManager.class);
 
-    private volatile GRPCChannel managedChannel = null;
-    private volatile ScheduledFuture<?> connectCheckFuture;
-    private volatile boolean reconnect = true;
+    private volatile GRPCChannel managedChannel = null; // 连接gRPC Server的Channel。同一时间，GRPCChannelManager只连接一个gRPC Server节点，并且在Channel不因为各种网络问题断开的情况下，持续保持
+    private volatile ScheduledFuture<?> connectCheckFuture; // 定时重连gRPC Server的定时任务
+    private volatile boolean reconnect = true; // 是否重连。当Channel未连接需要连接，或者Channel断开需要重连时，标记reconnect为true。后台线程会根据该标识进行连接(重连)
     private Random random = new Random();
-    private List<GRPCChannelListener> listeners = Collections.synchronizedList(new LinkedList<GRPCChannelListener>());
-    private volatile List<String> grpcServers;
+    private List<GRPCChannelListener> listeners = Collections.synchronizedList(new LinkedList<GRPCChannelListener>()); // 监听器集合
+    private volatile List<String> grpcServers; // gRPC Server集合
     private volatile int selectedIdx = -1;
 
     @Override
@@ -48,13 +48,13 @@ public class GRPCChannelManager implements BootService, Runnable {
 
     @Override
     public void boot() throws Throwable {
-        if (Config.Collector.BACKEND_SERVICE.trim().length() == 0) {
+        if (Config.Collector.BACKEND_SERVICE.trim().length() == 0) { // 配置的gRPC Server地址
             logger.error("Collector server addresses are not set.");
             logger.error("Agent will not uplink any data.");
             return;
         }
-        grpcServers = Arrays.asList(Config.Collector.BACKEND_SERVICE.split(","));
-        connectCheckFuture = Executors
+        grpcServers = Arrays.asList(Config.Collector.BACKEND_SERVICE.split(",")); // 逗号分隔
+        connectCheckFuture = Executors // 定时任务，每30s执行一次
             .newSingleThreadScheduledExecutor(new DefaultNamedThreadFactory("GRPCChannelManager"))
             .scheduleAtFixedRate(new RunnableWithExceptionProtection(this, new RunnableWithExceptionProtection.CallbackWhenException() {
                 @Override
@@ -87,7 +87,7 @@ public class GRPCChannelManager implements BootService, Runnable {
             if (grpcServers.size() > 0) {
                 String server = "";
                 try {
-                    int index = Math.abs(random.nextInt()) % grpcServers.size();
+                    int index = Math.abs(random.nextInt()) % grpcServers.size(); // 随机选择准备链接
                     if (index != selectedIdx) {
                         selectedIdx = index;
 
@@ -97,14 +97,14 @@ public class GRPCChannelManager implements BootService, Runnable {
                         if (managedChannel != null) {
                             managedChannel.shutdownNow();
                         }
-
+                        // 创建Channel并进行连接
                         managedChannel = GRPCChannel.newBuilder(ipAndPort[0], Integer.parseInt(ipAndPort[1]))
                             .addManagedChannelBuilder(new StandardChannelBuilder())
                             .addManagedChannelBuilder(new TLSChannelBuilder())
                             .addChannelDecorator(new AuthenticationDecorator())
                             .build();
 
-                        notify(GRPCChannelStatus.CONNECTED);
+                        notify(GRPCChannelStatus.CONNECTED); // 通知GRPCChannelListener集合
                     }
 
                     reconnect = false;
@@ -132,7 +132,7 @@ public class GRPCChannelManager implements BootService, Runnable {
      * @param throwable
      */
     public void reportError(Throwable throwable) {
-        if (isNetworkError(throwable)) {
+        if (isNetworkError(throwable)) { // 出现网络异常，则设置reconnect为true，定时重连
             reconnect = true;
         }
     }

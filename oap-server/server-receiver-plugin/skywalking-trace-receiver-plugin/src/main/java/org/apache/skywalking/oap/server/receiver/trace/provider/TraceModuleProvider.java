@@ -62,6 +62,7 @@ public class TraceModuleProvider extends ModuleProvider {
     }
 
     @Override public void prepare() throws ServiceNotProvidedException {
+        // 用来监听慢查询的
         thresholds = new DBLatencyThresholdsAndWatcher(moduleConfig.getSlowDBAccessThreshold(), this);
 
         moduleConfig.setDbLatencyThresholdsAndWatcher(thresholds);

@@ -69,8 +69,9 @@ public abstract class ConfigWatcherRegister implements DynamicConfigurationServi
     }
 
     void configSync() {
+        // 读取配置信息，针对不同的配置中心，读取的方式不同，所以这是个抽象方法
         ConfigTable configTable = readConfig(register.keys());
-
+        // 循环配置，如果配置发生改变，则通知相应的ConfigChangeWatcher对象
         configTable.getItems().forEach(item -> {
             String itemName = item.getName();
             WatcherHolder holder = register.get(itemName);

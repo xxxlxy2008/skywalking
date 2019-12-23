@@ -141,10 +141,10 @@ public class SpanDecorator implements StandardBuilder {
     }
 
     public void setComponentId(int value) {
-        if (isOrigin) {
-            toBuilder();
+        if (isOrigin) { // 先检查isOrigin，确定spanBuilderV2字段是否已经初始化
+            toBuilder(); // 初始化spanBuilderV2字段，即创建 SpanObjectV2关联的Builder对象
         }
-        if (isV2) {
+        if (isV2) { // 通过 Builder完成更新
             spanBuilderV2.setComponentId(value);
         } else {
             spanBuilder.setComponentId(value);

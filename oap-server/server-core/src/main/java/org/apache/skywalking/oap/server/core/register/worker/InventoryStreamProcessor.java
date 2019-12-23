@@ -47,6 +47,7 @@ public class InventoryStreamProcessor implements StreamProcessor<RegisterSource>
 
     @SuppressWarnings("unchecked")
     public void create(ModuleDefineHolder moduleDefineHolder, Stream stream, Class<? extends RegisterSource> inventoryClass) {
+        // 查询StorageDAO的实现，其实就是为拿RegisterDAO对象
         StorageDAO storageDAO = moduleDefineHolder.find(StorageModule.NAME).provider().getService(StorageDAO.class);
         IRegisterDAO registerDAO;
         try {
@@ -61,12 +62,11 @@ public class InventoryStreamProcessor implements StreamProcessor<RegisterSource>
         StreamDataMappingSetter streamDataMappingSetter = moduleDefineHolder.find(CoreModule.NAME).provider().getService(StreamDataMappingSetter.class);
         streamDataMappingSetter.putIfAbsent(inventoryClass);
 
+        // 创建多个 Worker 对象，并且连接成链式结构
         RegisterPersistentWorker persistentWorker = new RegisterPersistentWorker(moduleDefineHolder, model.getName(), registerDAO, stream.scopeId());
-
         RegisterRemoteWorker remoteWorker = new RegisterRemoteWorker(moduleDefineHolder, persistentWorker);
-
         RegisterDistinctWorker distinctWorker = new RegisterDistinctWorker(moduleDefineHolder, remoteWorker);
-
+        // 将 Worker 链记录到 entryWorkers集合
         entryWorkers.put(inventoryClass, distinctWorker);
     }
 

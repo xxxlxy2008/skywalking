@@ -73,12 +73,12 @@ public class InstMethodsInter {
     public Object intercept(@This Object obj,
         @AllArguments Object[] allArguments,
         @SuperCall Callable<?> zuper,
-        @Origin Method method
+        @Origin Method method // 目标方法的描述信息
     ) throws Throwable {
         EnhancedInstance targetObject = (EnhancedInstance)obj;
 
         MethodInterceptResult result = new MethodInterceptResult();
-        try {
+        try { // beforeMethod()
             interceptor.beforeMethod(targetObject, method, allArguments, method.getParameterTypes(),
                 result);
         } catch (Throwable t) {
@@ -87,13 +87,13 @@ public class InstMethodsInter {
 
         Object ret = null;
         try {
-            if (!result.isContinue()) {
+            if (!result.isContinue()) { // 是否需要继续调用目标方法，beforeMethod()方法会修改MethodInterceptResult对象
                 ret = result._ret();
             } else {
-                ret = zuper.call();
+                ret = zuper.call(); // 调用目标方法
             }
         } catch (Throwable t) {
-            try {
+            try { // 异常处理
                 interceptor.handleMethodException(targetObject, method, allArguments, method.getParameterTypes(),
                     t);
             } catch (Throwable t2) {
@@ -101,7 +101,7 @@ public class InstMethodsInter {
             }
             throw t;
         } finally {
-            try {
+            try { // afterMethod()
                 ret = interceptor.afterMethod(targetObject, method, allArguments, method.getParameterTypes(),
                     ret);
             } catch (Throwable t) {

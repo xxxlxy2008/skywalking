@@ -79,6 +79,7 @@ public class CoreModuleProvider extends ModuleProvider {
     }
 
     @Override public void prepare() throws ServiceNotProvidedException, ModuleStartException {
+        // 扫描一堆注解
         AnnotationScan scopeScan = new AnnotationScan();
         scopeScan.registerListener(new DefaultScopeDefine.Listener());
         scopeScan.registerListener(DisableRegister.INSTANCE);
@@ -100,13 +101,14 @@ public class CoreModuleProvider extends ModuleProvider {
 
         jettyServer = new JettyServer(moduleConfig.getRestHost(), moduleConfig.getRestPort(), moduleConfig.getRestContextPath(), moduleConfig.getJettySelectors());
         jettyServer.initialize();
-
+        // 记录配置的Service
         this.registerServiceImplementation(ConfigService.class, new ConfigService(moduleConfig));
         this.registerServiceImplementation(DownsamplingConfigService.class, new DownsamplingConfigService(moduleConfig.getDownsampling()));
-
+        // 用于注册GRPCHandler和JettyHandler的Service
         this.registerServiceImplementation(GRPCHandlerRegister.class, new GRPCHandlerRegisterImpl(grpcServer));
         this.registerServiceImplementation(JettyHandlerRegister.class, new JettyHandlerRegisterImpl(jettyServer));
-
+        // ComponentLibraryCatalogService就是读取了一下 component-libraries.yml 配置文件，
+        // 其中记录该配置文件中记录了一些ComponentName和ComponentId之间的映射关系
         this.registerServiceImplementation(IComponentLibraryCatalogService.class, new ComponentLibraryCatalogService());
 
         this.registerServiceImplementation(SourceReceiver.class, receiver);

@@ -55,7 +55,7 @@ public class MetricsStreamProcessor implements StreamProcessor<Metrics> {
         if (DisableRegister.INSTANCE.include(stream.name())) {
             return;
         }
-
+        // 获取 IMetricsDAO
         StorageDAO storageDAO = moduleDefineHolder.find(StorageModule.NAME).provider().getService(StorageDAO.class);
         IMetricsDAO metricsDAO;
         try {
@@ -88,12 +88,16 @@ public class MetricsStreamProcessor implements StreamProcessor<Metrics> {
         }
 
         Model model = modelSetter.putIfAbsent(metricsClass, stream.scopeId(), new Storage(stream.name(), true, true, Downsampling.Minute));
+        // 创建minutePersistentWorker
         MetricsPersistentWorker minutePersistentWorker = minutePersistentWorker(moduleDefineHolder, metricsDAO, model);
-
-        MetricsTransWorker transWorker = new MetricsTransWorker(moduleDefineHolder, stream.name(), minutePersistentWorker, hourPersistentWorker, dayPersistentWorker, monthPersistentWorker);
+        // 创建 MetricsTransWorker，后续worker指向 minutePersistenceWorker对象(以及hour、day、monthPersistentWorker)
+        MetricsTransWorker transWorker = new MetricsTransWorker(moduleDefineHolder, stream.name(),
+                minutePersistentWorker, hourPersistentWorker, dayPersistentWorker, monthPersistentWorker);
+        // 创建MetricsRemoteWorker，并将 nextWorker指向上面的 MetricsTransWorker对象
         MetricsRemoteWorker remoteWorker = new MetricsRemoteWorker(moduleDefineHolder, transWorker, stream.name());
+        // 创建MetricsAggregateWorker，并将nextWorker指向上面的MetricsRemoteWorker对象
         MetricsAggregateWorker aggregateWorker = new MetricsAggregateWorker(moduleDefineHolder, remoteWorker, stream.name());
-
+        // 将上述worker链与指定 Metrics类型绑定
         entryWorkers.put(metricsClass, aggregateWorker);
     }
 

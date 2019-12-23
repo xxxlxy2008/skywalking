@@ -84,8 +84,9 @@ public class RegisterServiceHandler extends RegisterGrpc.RegisterImplBase implem
         ServiceInstanceRegisterMapping.Builder builder = ServiceInstanceRegisterMapping.newBuilder();
 
         request.getInstancesList().forEach(instance -> {
+            // 查询 Service信息
             ServiceInventory serviceInventory = serviceInventoryCache.get(instance.getServiceId());
-
+            // 构造 ServiceInstance的附加信息
             JsonObject instanceProperties = new JsonObject();
             List<String> ipv4s = new ArrayList<>();
 
@@ -110,7 +111,7 @@ public class RegisterServiceHandler extends RegisterGrpc.RegisterImplBase implem
                 }
             }
             instanceProperties.addProperty(IPV4S, ServiceInstanceInventory.PropertyUtil.ipv4sSerialize(ipv4s));
-
+            // 构造 InstanceName
             String instanceName = serviceInventory.getName();
             if (instanceProperties.has(PROCESS_NO)) {
                 instanceName += "-pid:" + instanceProperties.get(PROCESS_NO).getAsString();
@@ -118,7 +119,7 @@ public class RegisterServiceHandler extends RegisterGrpc.RegisterImplBase implem
             if (instanceProperties.has(HOST_NAME)) {
                 instanceName += "@" + instanceProperties.get(HOST_NAME).getAsString();
             }
-
+            // 通过 ServiceInstanceInventoryRegister继续处理
             int serviceInstanceId = serviceInstanceInventoryRegister.getOrCreate(instance.getServiceId(), instanceName, instance.getInstanceUUID(), instance.getTime(), instanceProperties);
 
             if (serviceInstanceId != Const.NONE) {
@@ -131,7 +132,7 @@ public class RegisterServiceHandler extends RegisterGrpc.RegisterImplBase implem
         responseObserver.onCompleted();
     }
 
-    @Override public void doEndpointRegister(Enpoints request, StreamObserver<EndpointMapping> responseObserver) {
+    @Override public void doEndpointRegister(Endpoints request, StreamObserver<EndpointMapping> responseObserver) {
         EndpointMapping.Builder builder = EndpointMapping.newBuilder();
 
         request.getEndpointsList().forEach(endpoint -> {

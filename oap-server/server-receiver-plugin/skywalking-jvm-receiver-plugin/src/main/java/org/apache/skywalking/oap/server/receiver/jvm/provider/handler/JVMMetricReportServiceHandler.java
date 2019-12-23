@@ -37,6 +37,7 @@ public class JVMMetricReportServiceHandler extends JVMMetricReportServiceGrpc.JV
     }
 
     @Override public void collect(JVMMetricCollection request, StreamObserver<Commands> responseObserver) {
+        // 解析请求中的 serviceInstanceId
         int serviceInstanceId = request.getServiceInstanceId();
 
         if (logger.isDebugEnabled()) {
@@ -44,6 +45,7 @@ public class JVMMetricReportServiceHandler extends JVMMetricReportServiceGrpc.JV
         }
 
         request.getMetricsList().forEach(metrics -> {
+            // TimeBucket主要负责计算时间窗口，这里是按照一分钟为一个时间窗口
             long minuteTimeBucket = TimeBucket.getMinuteTimeBucket(metrics.getTime());
             jvmSourceDispatcher.sendMetric(serviceInstanceId, minuteTimeBucket, metrics);
         });

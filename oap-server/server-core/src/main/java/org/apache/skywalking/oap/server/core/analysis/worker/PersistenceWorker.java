@@ -42,11 +42,12 @@ public abstract class PersistenceWorker<INPUT extends StorageData, CACHE extends
     }
 
     void onWork(INPUT input) {
+        // 缓存中累计的数据够多了，会切换一次缓冲区，并进行一次批量写操作
         if (getCache().currentCollectionSize() >= batchSize) {
             try {
-                if (getCache().trySwitchPointer()) {
-                    getCache().switchPointer();
-
+                if (getCache().trySwitchPointer()) { // 检测是否符合切换缓冲队列的条件
+                    getCache().switchPointer(); // 切换缓冲队列
+                    // 创建一批请求并批量执行
                     List<?> collection = buildBatchCollection();
                     batchDAO.batchPersistence(collection);
                 }
@@ -54,7 +55,7 @@ public abstract class PersistenceWorker<INPUT extends StorageData, CACHE extends
                 getCache().trySwitchPointerFinally();
             }
         }
-        cacheData(input);
+        cacheData(input); // 写入缓存
     }
 
     public abstract void cacheData(INPUT input);
@@ -78,6 +79,7 @@ public abstract class PersistenceWorker<INPUT extends StorageData, CACHE extends
     public final List<?> buildBatchCollection() {
         List<?> batchCollection = new LinkedList<>();
         try {
+            // 这里等待即将读取的缓冲队列停写
             while (getCache().getLast().isWriting()) {
                 try {
                     Thread.sleep(10);
@@ -85,7 +87,7 @@ public abstract class PersistenceWorker<INPUT extends StorageData, CACHE extends
                     logger.warn("thread wake up");
                 }
             }
-
+            // 获取缓冲队列
             if (getCache().getLast().collection() != null) {
                 batchCollection = prepareBatch(getCache());
             }

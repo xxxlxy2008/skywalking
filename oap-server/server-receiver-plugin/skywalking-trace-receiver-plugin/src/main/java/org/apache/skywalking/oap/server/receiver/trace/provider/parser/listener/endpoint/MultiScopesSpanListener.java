@@ -82,8 +82,11 @@ public class MultiScopesSpanListener implements EntrySpanListener, ExitSpanListe
 
         if (spanDecorator.getRefsCount() > 0) {
             for (int i = 0; i < spanDecorator.getRefsCount(); i++) {
+                // 获取 TraceSegmentReference对应的的ReferenceDecorator
                 ReferenceDecorator reference = spanDecorator.getRefs(i);
+                // 创建对应的SourceBuilder
                 SourceBuilder sourceBuilder = new SourceBuilder();
+                // 记录上游系统的serviceId、serviceInstanceId以及endpointId
                 sourceBuilder.setSourceEndpointId(reference.getParentEndpointId());
 
                 if (spanDecorator.getSpanLayer().equals(SpanLayer.MQ)) {
@@ -95,12 +98,16 @@ public class MultiScopesSpanListener implements EntrySpanListener, ExitSpanListe
                     sourceBuilder.setSourceServiceInstanceId(reference.getParentServiceInstanceId());
                     sourceBuilder.setSourceServiceId(instanceInventoryCache.get(reference.getParentServiceInstanceId()).getServiceId());
                 }
+                // 记录下游(当前)系统的serviceId、serviceInstanceId以及endpointId
                 sourceBuilder.setDestEndpointId(spanDecorator.getOperationNameId());
                 sourceBuilder.setDestServiceInstanceId(segmentCoreInfo.getServiceInstanceId());
                 sourceBuilder.setDestServiceId(segmentCoreInfo.getServiceId());
                 sourceBuilder.setDetectPoint(DetectPoint.SERVER);
+                // 记录当前组件的类型
                 sourceBuilder.setComponentId(spanDecorator.getComponentId());
+                // 这里将解析EntrySpan和ExitSpan都会设置的一些公共信息封装到了setPublicAttrs中
                 setPublicAttrs(sourceBuilder, spanDecorator);
+                // 将SourceBuilder记录到entrySourceBuilders集合中
                 entrySourceBuilders.add(sourceBuilder);
             }
         } else {
@@ -126,7 +133,7 @@ public class MultiScopesSpanListener implements EntrySpanListener, ExitSpanListe
         }
 
         SourceBuilder sourceBuilder = new SourceBuilder();
-
+        // 记录下游系统的serviceId、serviceInstanceId以及endpointId
         int peerId = spanDecorator.getPeerId();
         if (peerId == 0) {
             return;
@@ -134,10 +141,6 @@ public class MultiScopesSpanListener implements EntrySpanListener, ExitSpanListe
         int destServiceId = serviceInventoryCache.getServiceId(peerId);
         int mappingServiceId = serviceInventoryCache.get(destServiceId).getMappingServiceId();
         int destInstanceId = instanceInventoryCache.getServiceInstanceId(destServiceId, peerId);
-
-        sourceBuilder.setSourceEndpointId(Const.USER_ENDPOINT_ID);
-        sourceBuilder.setSourceServiceInstanceId(segmentCoreInfo.getServiceInstanceId());
-        sourceBuilder.setSourceServiceId(segmentCoreInfo.getServiceId());
         sourceBuilder.setDestEndpointId(spanDecorator.getOperationNameId());
         sourceBuilder.setDestServiceInstanceId(destInstanceId);
         if (Const.NONE == mappingServiceId) {
@@ -145,6 +148,10 @@ public class MultiScopesSpanListener implements EntrySpanListener, ExitSpanListe
         } else {
             sourceBuilder.setDestServiceId(mappingServiceId);
         }
+        // 记录当前(上游)系统的serviceId、serviceInstanceId以及endpointId
+        sourceBuilder.setSourceEndpointId(Const.USER_ENDPOINT_ID);
+        sourceBuilder.setSourceServiceInstanceId(segmentCoreInfo.getServiceInstanceId());
+        sourceBuilder.setSourceServiceId(segmentCoreInfo.getServiceId());
         sourceBuilder.setDetectPoint(DetectPoint.CLIENT);
         sourceBuilder.setComponentId(spanDecorator.getComponentId());
         setPublicAttrs(sourceBuilder, spanDecorator);
@@ -180,6 +187,7 @@ public class MultiScopesSpanListener implements EntrySpanListener, ExitSpanListe
     }
 
     private void setPublicAttrs(SourceBuilder sourceBuilder, SpanDecorator spanDecorator) {
+        // 计算latency，即当前Span的时间跨度，在后面计算系统延迟的时候会用到
         long latency = spanDecorator.getEndTime() - spanDecorator.getStartTime();
         sourceBuilder.setLatency((int)latency);
         sourceBuilder.setResponseCode(Const.NONE);
@@ -196,7 +204,7 @@ public class MultiScopesSpanListener implements EntrySpanListener, ExitSpanListe
                 sourceBuilder.setType(RequestType.RPC);
                 break;
         }
-
+        // 填充上下游系统中的serviceName、serviceInstanceName以及endpointName
         sourceBuilder.setSourceServiceName(serviceInventoryCache.get(sourceBuilder.getSourceServiceId()).getName());
         sourceBuilder.setSourceServiceInstanceName(instanceInventoryCache.get(sourceBuilder.getSourceServiceInstanceId()).getName());
         sourceBuilder.setSourceEndpointName(endpointInventoryCache.get(sourceBuilder.getSourceEndpointId()).getName());
@@ -245,7 +253,7 @@ public class MultiScopesSpanListener implements EntrySpanListener, ExitSpanListe
     }
 
     @Override public void parseGlobalTraceId(UniqueId uniqueId, SegmentCoreInfo segmentCoreInfo) {
-        if (traceId == null) {
+        if (traceId == null) { // 只记录第一个
             StringBuilder traceIdBuilder = new StringBuilder();
             for (int i = 0; i < uniqueId.getIdPartsList().size(); i++) {
                 if (i == 0) {

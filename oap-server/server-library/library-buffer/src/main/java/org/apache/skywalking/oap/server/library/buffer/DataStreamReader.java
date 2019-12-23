@@ -33,8 +33,9 @@ import org.slf4j.*;
 public class DataStreamReader<MESSAGE_TYPE extends GeneratedMessageV3> {
 
     private static final Logger logger = LoggerFactory.getLogger(DataStreamReader.class);
-
+    // data文件所在的文件夹
     private final File directory;
+    // ReadOffset中记录了DataStreamReader当前读取的data文件名以及偏移量
     private final Offset.ReadOffset readOffset;
     private final Parser<MESSAGE_TYPE> parser;
     private final CallBack<MESSAGE_TYPE> callBack;
@@ -117,7 +118,8 @@ public class DataStreamReader<MESSAGE_TYPE extends GeneratedMessageV3> {
             }
 
             while (readOffset.getOffset() < readingFile.length()) {
-                BufferData<MESSAGE_TYPE> bufferData = new BufferData<>(parser.parseDelimitedFrom(inputStream));
+                BufferData<MESSAGE_TYPE> bufferData =
+                        new BufferData<>(parser.parseDelimitedFrom(inputStream));
 
                 if (bufferData.getMessageType() != null) {
                     boolean isComplete = callBack.call(bufferData);

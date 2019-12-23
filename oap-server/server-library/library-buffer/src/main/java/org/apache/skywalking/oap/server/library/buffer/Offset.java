@@ -27,6 +27,7 @@ import org.apache.skywalking.apm.util.StringUtil;
 class Offset {
 
     private static final String SPLIT_CHARACTER = ",";
+    // 记录了读写偏移量
     @Getter private final ReadOffset readOffset;
     @Getter private final WriteOffset writeOffset;
 

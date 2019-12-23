@@ -28,6 +28,8 @@ public class MergeDataCache<METRICS extends Metrics> extends Window<METRICS> imp
     private SWCollection<METRICS> lockedMergeDataCollection;
 
     @Override public SWCollection<METRICS> collectionInstance() {
+        // MergeDataCollection底层一个 HashMap实现，暴露了Map的基本方法，
+        // 还封装了reading和writing两个volatile boolean字段，用于标记当前 MergeDataCollection的状态
         return new MergeDataCollection<>();
     }
 

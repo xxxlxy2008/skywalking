@@ -102,9 +102,11 @@ public class AgentClassLoader extends ClassLoader {
     }
 
     public AgentClassLoader(ClassLoader parent) throws AgentPackageNotFoundException {
-        super(parent);
+        super(parent); // ClassLoader的委托机制哈
+        // skywalking-agent.jar所在的目录
         File agentDictionary = AgentPackagePath.getPath();
         classpath = new LinkedList<File>();
+        // 指定AgentClassLoader的classpath
         classpath.add(new File(agentDictionary, "plugins"));
         classpath.add(new File(agentDictionary, "activations"));
     }

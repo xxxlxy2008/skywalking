@@ -67,16 +67,20 @@ public class NetworkAddressInventoryRegister implements INetworkAddressInventory
     }
 
     @Override public int getOrCreate(String networkAddress, JsonObject properties) {
+        // 通过NetworkAddressInventoryCache缓存查找该NetworkAddress对应的id
         int addressId = getNetworkAddressInventoryCache().getAddressId(networkAddress);
 
         if (addressId != Const.NONE) {
+            // 每个 NetworkAddress 在 service_inventory 索引中也会分配一个相应的 serviceId
+            // 如果查询失败，则会进行创建，ServiceInventoryRegister的逻辑不再重复
             int serviceId = getServiceInventoryRegister().getOrCreate(addressId, networkAddress, properties);
 
             if (serviceId != Const.NONE) {
+                // 每个 NetworkAddress 在 service_instance_inventory 索引中也会分配一个相应的 serviceInstanceId
+                // 如果查询失败，则会进行创建，ServiceInstanceInventoryRegister的逻辑不再重复
                 int serviceInstanceId = getServiceInstanceInventoryRegister().getOrCreate(serviceId, addressId, System.currentTimeMillis());
-
                 if (serviceInstanceId != Const.NONE) {
-                    return addressId;
+                    return addressId; // 当上述查询都成功之后，才会返回
                 }
             }
         } else {
@@ -86,7 +90,7 @@ public class NetworkAddressInventoryRegister implements INetworkAddressInventory
             long now = System.currentTimeMillis();
             newNetworkAddress.setRegisterTime(now);
             newNetworkAddress.setHeartbeatTime(now);
-
+            // InventoryStreamProcessor处理，为 newNetworkAddress生成对应的id
             InventoryStreamProcessor.getInstance().in(newNetworkAddress);
         }
 

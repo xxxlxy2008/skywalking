@@ -43,12 +43,19 @@ public class TraceSegmentServiceClient implements BootService, IConsumer<TraceSe
     private static final ILog logger = LogManager.getLogger(TraceSegmentServiceClient.class);
     private static final int TIMEOUT = 30 * 1000;
 
-    private long lastLogTime;
-    private long segmentUplinkedCounter;
-    private long segmentAbandonedCounter;
-    private volatile DataCarrier<TraceSegment> carrier;
+    // 负责发送 TraceSegment的 RPC客户端
     private volatile TraceSegmentReportServiceGrpc.TraceSegmentReportServiceStub serviceStub;
+    // 当前RPC链接状态
     private volatile GRPCChannelStatus status = GRPCChannelStatus.DISCONNECT;
+    // 内存缓冲队列
+    private volatile DataCarrier<TraceSegment> carrier;
+    // 最后打印日志时间，该属性主要用于开发调试
+    private long lastLogTime;
+    // 用于统计发送的TraceSegment数量
+    private long segmentUplinkedCounter;
+    // 用于统计丢弃的TraceSegment数量
+    private long segmentAbandonedCounter;
+
 
     @Override
     public void prepare() throws Throwable {
@@ -60,8 +67,11 @@ public class TraceSegmentServiceClient implements BootService, IConsumer<TraceSe
         lastLogTime = System.currentTimeMillis();
         segmentUplinkedCounter = 0;
         segmentAbandonedCounter = 0;
+        // 创建 DataCarrier实例
         carrier = new DataCarrier<TraceSegment>(CHANNEL_SIZE, BUFFER_SIZE);
+        // IF_POSSIBLE策略
         carrier.setBufferStrategy(BufferStrategy.IF_POSSIBLE);
+        // 这里只会启动一个 ConsumeThread线程
         carrier.consume(this, 1);
     }
 
@@ -83,7 +93,8 @@ public class TraceSegmentServiceClient implements BootService, IConsumer<TraceSe
 
     @Override
     public void consume(List<TraceSegment> data) {
-        if (CONNECTED.equals(status)) {
+        if (CONNECTED.equals(status)) { // 检测当前的链接状态
+            // 创建 GRPCStreamServiceStatus对象
             final GRPCStreamServiceStatus status = new GRPCStreamServiceStatus(false);
             StreamObserver<UpstreamSegment> upstreamSegmentStreamObserver = serviceStub.collect(new StreamObserver<Commands>() {
                 @Override
@@ -92,7 +103,7 @@ public class TraceSegmentServiceClient implements BootService, IConsumer<TraceSe
                 }
 
                 @Override
-                public void onError(Throwable throwable) {
+                public void onError(Throwable throwable) {  // 发生异常会调用该方法
                     status.finished();
                     if (logger.isErrorEnable()) {
                         logger.error(throwable, "Send UpstreamSegment to collector fail with a grpc internal exception.");
@@ -102,23 +113,24 @@ public class TraceSegmentServiceClient implements BootService, IConsumer<TraceSe
 
                 @Override
                 public void onCompleted() {
-                    status.finished();
+                    status.finished(); // 发送完成之后，会调用finished()方法结束等待
                 }
             });
 
             try {
                 for (TraceSegment segment : data) {
+                    // 序列化 TraceSegment并发送
                     UpstreamSegment upstreamSegment = segment.transform();
                     upstreamSegmentStreamObserver.onNext(upstreamSegment);
                 }
                 upstreamSegmentStreamObserver.onCompleted();
 
-                status.wait4Finish();
-                segmentUplinkedCounter += data.size();
+                status.wait4Finish(); // 等待全部 TraceSegment发送结束
+                segmentUplinkedCounter += data.size(); // 增加 segmentUplinkedCounter字段
             } catch (Throwable t) {
                 logger.error(t, "Transform and send UpstreamSegment to collector fail.");
             }
-        } else {
+        } else { // 链接断开的时候，直接抛弃 TraceSegment，增加 segmentAbandonedCounter
             segmentAbandonedCounter += data.size();
         }
 

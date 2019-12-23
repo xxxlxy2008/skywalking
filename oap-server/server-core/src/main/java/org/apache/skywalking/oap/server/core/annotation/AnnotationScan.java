@@ -40,21 +40,22 @@ public class AnnotationScan {
     }
 
     public void scan(Runnable callBack) throws IOException {
+        // 获取 ClassPath
         ClassPath classpath = ClassPath.from(this.getClass().getClassLoader());
+        // 获取 org.apache.skywalking包下的所有类
         ImmutableSet<ClassPath.ClassInfo> classes = classpath.getTopLevelClassesRecursive("org.apache.skywalking");
+        // 遍历这些类，如果是被指定注解标注了，就记录下来
         for (ClassPath.ClassInfo classInfo : classes) {
             Class<?> aClass = classInfo.load();
-
             for (AnnotationListenerCache listener : listeners) {
                 if (aClass.isAnnotationPresent(listener.annotation())) {
                     listener.addMatch(aClass);
                 }
             }
         }
-
+        // 调用Listener的notify()方法进行处理
         listeners.forEach(AnnotationListenerCache::complete);
-
-        if (callBack != null) {
+        if (callBack != null) { // 回调，没啥卵用
             callBack.run();
         }
     }

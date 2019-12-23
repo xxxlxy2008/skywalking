@@ -36,9 +36,9 @@ class OffsetStream {
     private static final Logger logger = LoggerFactory.getLogger(OffsetStream.class);
 
     private final File directory;
-    private final int offsetFileMaxSize;
+    private final int offsetFileMaxSize; // offset文件的大小上限值，单位为MB
 
-    @Getter private final Offset offset;
+    @Getter private final Offset offset; // 其中封装了ReadOffset和WriteOffset，分别用来用来记录读写的文件名和读写的偏移量
     private File offsetFile;
     private boolean initialized = false;
     private String lastOffsetRecord = "";
@@ -64,13 +64,15 @@ class OffsetStream {
 
     synchronized void initialize() throws IOException {
         if (!initialized) {
+            // 读取 offset文件，offset文件名格式是：offset-时间戳.sw
             String[] fileNames = directory.list(new PrefixFileFilter(BufferFileUtils.OFFSET_FILE_PREFIX));
             if (fileNames != null && fileNames.length > 0) {
-                BufferFileUtils.sort(fileNames);
+                BufferFileUtils.sort(fileNames); // 排序，读取最新一个offset
                 offsetFile = new File(directory, fileNames[0]);
             } else {
-                offsetFile = newFile();
+                offsetFile = newFile(); // 新建文件
             }
+            // 直接读取最新offset文件的最后一行。offset文件中，每一行数据的格式分为：read文件名，read文件offset，write文件名，write文件offset
             offset.deserialize(readLastLine());
             initialized = true;
 
@@ -83,18 +85,18 @@ class OffsetStream {
 
     void flush() {
         try {
-            String offsetRecord = offset.serialize();
-            if (!lastOffsetRecord.equals(offsetRecord)) {
+            String offsetRecord = offset.serialize(); // 序列化Offset
+            if (!lastOffsetRecord.equals(offsetRecord)) { // 检测lastOffsetRecord是否发生变化
                 logger.debug("flush offset, record: {}", offsetRecord);
                 if (offsetFile.length() >= FileUtils.ONE_MB * offsetFileMaxSize) {
                     nextFile();
                 }
-
+                // 将lastOffsetRecord写入到offset文件
                 try (OutputStream out = new BufferedOutputStream(FileUtils.openOutputStream(offsetFile, true))) {
                     IOUtils.write(offsetRecord, out, Charset.forName(BufferFileUtils.CHARSET));
                     IOUtils.write(System.lineSeparator(), out, Charset.forName(BufferFileUtils.CHARSET));
                 }
-                lastOffsetRecord = offsetRecord;
+                lastOffsetRecord = offsetRecord; // 更新lastOffsetRecord
             }
         } catch (IOException e) {
             throw new RuntimeException(e.getMessage(), e);
@@ -102,8 +104,8 @@ class OffsetStream {
     }
 
     private void nextFile() throws IOException {
-        File newOffsetFile = newFile();
-        if (!offsetFile.delete()) {
+        File newOffsetFile = newFile(); // 新建offset文件
+        if (!offsetFile.delete()) { // 尝试删除原有offset文件
             logger.warn("Offset file {} delete failure.", newOffsetFile.getAbsolutePath());
         }
         offsetFile = newOffsetFile;
