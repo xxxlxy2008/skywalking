@@ -44,10 +44,10 @@ public abstract class EsDAO extends AbstractDAO<ElasticSearchClient> {
             sourceBuilder.query(rangeQueryBuilder);
         } else {
             BoolQueryBuilder boolQuery = QueryBuilders.boolQuery();
-            boolQuery.must().add(rangeQueryBuilder);
+            boolQuery.must().add(rangeQueryBuilder);  // 指定查询的时间范围
 
             where.getKeyValues().forEach(keyValues -> {
-                if (keyValues.getValues().size() > 1) {
+                if (keyValues.getValues().size() > 1) {  // 查询 entity_id字段，可以一次指定多个
                     boolQuery.must().add(QueryBuilders.termsQuery(keyValues.getKey(), keyValues.getValues()));
                 } else {
                     boolQuery.must().add(QueryBuilders.termQuery(keyValues.getKey(), keyValues.getValues().get(0)));
@@ -55,7 +55,7 @@ public abstract class EsDAO extends AbstractDAO<ElasticSearchClient> {
             });
             sourceBuilder.query(boolQuery);
         }
-        sourceBuilder.size(0);
+        sourceBuilder.size(0); // 全部范围
     }
 
     XContentBuilder map2builder(Map<String, Object> objectMap) throws IOException {

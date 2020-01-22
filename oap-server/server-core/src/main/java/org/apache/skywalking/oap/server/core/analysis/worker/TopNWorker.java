@@ -90,9 +90,9 @@ public class TopNWorker extends PersistenceWorker<TopN, LimitedSizeDataCache<Top
     @Override public boolean flushAndSwitch() {
         long now = System.currentTimeMillis();
         if (now - lastReportTimestamp <= reportCycle) {
-            return false;
+            return false; // 默认10min执行一次
         }
-        lastReportTimestamp = now;
+        lastReportTimestamp = now; // 重置lastReportTimestamp
         return super.flushAndSwitch();
     }
 

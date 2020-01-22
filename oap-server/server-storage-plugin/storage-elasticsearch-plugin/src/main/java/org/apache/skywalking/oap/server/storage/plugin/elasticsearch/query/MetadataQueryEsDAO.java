@@ -115,15 +115,16 @@ public class MetadataQueryEsDAO extends EsDAO implements IMetadataQueryDAO {
         SearchSourceBuilder sourceBuilder = SearchSourceBuilder.searchSource();
 
         BoolQueryBuilder boolQueryBuilder = QueryBuilders.boolQuery();
+        // 时间条件
         boolQueryBuilder.must().add(timeRangeQueryBuild(startTimestamp, endTimestamp));
-
+        // 不查询 NetWorkAddress在 service_inventory索引中的数据
         boolQueryBuilder.must().add(QueryBuilders.termQuery(ServiceInventory.IS_ADDRESS, BooleanUtils.FALSE));
 
         sourceBuilder.query(boolQueryBuilder);
-        sourceBuilder.size(queryMaxSize);
-
+        sourceBuilder.size(queryMaxSize); // 查询返回Document的个数上限，默认上限5000个
+        // 通过 RestHighLevelClient 执行 SearchRequest查询
         SearchResponse response = getClient().search(ServiceInventory.INDEX_NAME, sourceBuilder);
-
+        // 从 SearchResponse响应中获取相应的 Service信息并返回
         return buildServices(response);
     }
 
@@ -164,18 +165,22 @@ public class MetadataQueryEsDAO extends EsDAO implements IMetadataQueryDAO {
         SearchSourceBuilder sourceBuilder = SearchSourceBuilder.searchSource();
 
         BoolQueryBuilder boolQueryBuilder = QueryBuilders.boolQuery();
+        // 查询的时间范围
         boolQueryBuilder.must().add(timeRangeQueryBuild(startTimestamp, endTimestamp));
+        // 不查询 NetWorkAddress在 service_inventory索引中的数据
         boolQueryBuilder.must().add(QueryBuilders.termQuery(ServiceInventory.IS_ADDRESS, BooleanUtils.FALSE));
 
         if (!Strings.isNullOrEmpty(keyword)) {
+            // serviceName匹配关键字
             String matchCName = MatchCNameBuilder.INSTANCE.build(ServiceInventory.NAME);
             boolQueryBuilder.must().add(QueryBuilders.matchQuery(matchCName, keyword));
         }
 
         sourceBuilder.query(boolQueryBuilder);
-        sourceBuilder.size(queryMaxSize);
-
+        sourceBuilder.size(queryMaxSize); // 查询返回Document的个数上限，默认上限5000个
+        // 通过 RestHighLevelClient 执行 SearchRequest查询
         SearchResponse response = getClient().search(ServiceInventory.INDEX_NAME, sourceBuilder);
+        // 从 SearchResponse响应中获取相应的 Service信息并返回
         return buildServices(response);
     }
 

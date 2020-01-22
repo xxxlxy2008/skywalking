@@ -86,12 +86,14 @@ class OffsetStream {
     void flush() {
         try {
             String offsetRecord = offset.serialize(); // 序列化Offset
+            // lastOffsetRecord记录了上一次记录的Offset信息
             if (!lastOffsetRecord.equals(offsetRecord)) { // 检测lastOffsetRecord是否发生变化
                 logger.debug("flush offset, record: {}", offsetRecord);
+                // 检测当前offset文件的大小是否已到上限
                 if (offsetFile.length() >= FileUtils.ONE_MB * offsetFileMaxSize) {
-                    nextFile();
+                    nextFile(); // 切换文件，创建新offset文件并将offsetFile指向新offset文件
                 }
-                // 将lastOffsetRecord写入到offset文件
+                // 将Offset信息写入到当前offset文件中
                 try (OutputStream out = new BufferedOutputStream(FileUtils.openOutputStream(offsetFile, true))) {
                     IOUtils.write(offsetRecord, out, Charset.forName(BufferFileUtils.CHARSET));
                     IOUtils.write(System.lineSeparator(), out, Charset.forName(BufferFileUtils.CHARSET));

@@ -159,28 +159,30 @@ public class MultiScopesSpanListener implements EntrySpanListener, ExitSpanListe
 
         if (sourceBuilder.getType().equals(RequestType.DATABASE)) {
             boolean isSlowDBAccess = false;
-
             DatabaseSlowStatement statement = new DatabaseSlowStatement();
             statement.setId(segmentCoreInfo.getSegmentId() + "-" + spanDecorator.getSpanId());
-            statement.setDatabaseServiceId(sourceBuilder.getDestServiceId());
-            statement.setLatency(sourceBuilder.getLatency());
+            statement.setDatabaseServiceId(sourceBuilder.getDestServiceId()); // 记录 DB对应的ServiceId
+            statement.setLatency(sourceBuilder.getLatency()); // 记录SQL执行延迟
+            // 秒级时间窗口
             statement.setTimeBucket(TimeBucket.getSecondTimeBucket(segmentCoreInfo.getStartTime()));
-            statement.setTraceId(traceId);
+            statement.setTraceId(traceId); // 记录TraceId
+
             for (KeyStringValuePair tag : spanDecorator.getAllTags()) {
                 if (SpanTags.DB_STATEMENT.equals(tag.getKey())) {
-                    statement.setStatement(tag.getValue());
+                    statement.setStatement(tag.getValue()); // 记录sql语句
 
                 } else if (SpanTags.DB_TYPE.equals(tag.getKey())) {
+                    // 根据语句类型，从配置中查找慢查询的时间上限，dbType可选值主要有sql、Redis、MongoDB等
                     String dbType = tag.getValue();
                     DBLatencyThresholdsAndWatcher thresholds = config.getDbLatencyThresholdsAndWatcher();
                     int threshold = thresholds.getThreshold(dbType);
                     if (sourceBuilder.getLatency() > threshold) {
-                        isSlowDBAccess = true;
+                        isSlowDBAccess = true; // 判断当前sql语句是否为慢查询
                     }
                 }
             }
 
-            if (isSlowDBAccess) {
+            if (isSlowDBAccess) { // 将慢查询记录到slowDatabaseAccesses集合中
                 slowDatabaseAccesses.add(statement);
             }
         }
@@ -248,7 +250,8 @@ public class MultiScopesSpanListener implements EntrySpanListener, ExitSpanListe
                 sourceReceiver.receive(exitSourceBuilder.toDatabaseAccess());
             }
         });
-
+        // 将慢查询对应的 DatabaseSlowStatement对象交给SourceReceiver进行转发
+        // DatabaseSlowStatement对应的SourceDispatcher实现是DatabaseStatementDispatcher
         slowDatabaseAccesses.forEach(sourceReceiver::receive);
     }
 

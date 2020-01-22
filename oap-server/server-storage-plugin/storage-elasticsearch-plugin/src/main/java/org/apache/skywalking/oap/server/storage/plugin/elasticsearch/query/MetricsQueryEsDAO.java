@@ -49,8 +49,8 @@ public class MetricsQueryEsDAO extends EsDAO implements IMetricsQueryDAO {
         String indexName = ModelName.build(downsampling, indName);
 
         SearchSourceBuilder sourceBuilder = SearchSourceBuilder.searchSource();
-        queryBuild(sourceBuilder, where, startTB, endTB);
-
+        queryBuild(sourceBuilder, where, startTB, endTB);// 指定查询的时间范围以及entity_id字段
+        // 按照entity_id分组去平均值
         TermsAggregationBuilder entityIdAggregation = AggregationBuilders.terms(Metrics.ENTITY_ID).field(Metrics.ENTITY_ID).size(1000);
         functionAggregation(function, entityIdAggregation, valueCName);
 

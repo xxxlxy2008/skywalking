@@ -63,7 +63,7 @@ public class AlarmCore {
                 int minutes = Minutes.minutesBetween(lastExecuteTime, checkTime).getMinutes();
                 boolean[] hasExecute = new boolean[] {false};
                 runningContext.values().forEach(ruleList -> ruleList.forEach(runningRule -> {
-                    if (minutes > 0) {
+                    if (minutes > 0) { // 差值一分钟以上，才会进行告警检查
                         runningRule.moveTo(checkTime);
                         /**
                          * Don't run in the first quarter per min, avoid to trigger false alarm.
@@ -75,11 +75,11 @@ public class AlarmCore {
                     }
                 }));
                 // Set the last execute time, and make sure the second is `00`, such as: 18:30:00
-                if (hasExecute[0]) {
+                if (hasExecute[0]) { // 更新最近一次检查时间
                     lastExecuteTime = checkTime.minusSeconds(checkTime.getSecondOfMinute());
                 }
 
-                if (alarmMessageList.size() > 0) {
+                if (alarmMessageList.size() > 0) { // 将告警信息发送出去
                     allCallbacks.forEach(callback -> callback.doAlarm(alarmMessageList));
                 }
             } catch (Exception e) {

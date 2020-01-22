@@ -70,7 +70,7 @@ public class MetricQueryService implements Service {
 
     public IntValues getLinearIntValues(final String indName, final String id, final Downsampling downsampling, final long startTB,
         final long endTB) throws IOException, ParseException {
-        List<DurationPoint> durationPoints = DurationUtils.INSTANCE.getDurationPoints(downsampling, startTB, endTB);
+        List<DurationPoint> durationPoints = DurationUtils.INSTANCE.getDurationPoints(downsampling, startTB, endTB);// 获取待查询的点
         List<String> ids = new ArrayList<>();
         if (StringUtil.isEmpty(id)) {
             durationPoints.forEach(durationPoint -> ids.add(String.valueOf(durationPoint.getPoint())));

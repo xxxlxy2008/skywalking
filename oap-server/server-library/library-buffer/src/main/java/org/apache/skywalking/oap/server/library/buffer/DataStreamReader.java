@@ -38,11 +38,14 @@ public class DataStreamReader<MESSAGE_TYPE extends GeneratedMessageV3> {
     // ReadOffset中记录了DataStreamReader当前读取的data文件名以及偏移量
     private final Offset.ReadOffset readOffset;
     private final Parser<MESSAGE_TYPE> parser;
-    private final CallBack<MESSAGE_TYPE> callBack;
     private final int collectionSize = 100;
+    // 用于缓存读取到的 UpstreamSegment
     private final BufferDataCollection<MESSAGE_TYPE> bufferDataCollection;
+    // 指向当前读取的文件以及对应的文件流
     private File readingFile;
     private InputStream inputStream;
+    // 指向 SegmentParseV2.Producer，即用于重新解析 UpstreamSegment
+    private final CallBack<MESSAGE_TYPE> callBack;
 
     DataStreamReader(File directory, Offset.ReadOffset readOffset, Parser<MESSAGE_TYPE> parser,
         CallBack<MESSAGE_TYPE> callBack) {
@@ -118,18 +121,22 @@ public class DataStreamReader<MESSAGE_TYPE extends GeneratedMessageV3> {
             }
 
             while (readOffset.getOffset() < readingFile.length()) {
+                // 读取 data文件，反序列化得到 UpstreamSegment对象，并封装成 BufferData
                 BufferData<MESSAGE_TYPE> bufferData =
                         new BufferData<>(parser.parseDelimitedFrom(inputStream));
 
                 if (bufferData.getMessageType() != null) {
+                    // 将 BufferData直接交给SegmentParser处理，整个解析逻辑在前面介绍过了，
+                    // 唯一区别在于：这里传入的SegmentSource值不是 Agent，而是Buffer
                     boolean isComplete = callBack.call(bufferData);
+                    // 重新计算文件的偏移量，并记录到 readOffset.offset字段中
                     final int serialized = bufferData.getMessageType().getSerializedSize();
                     final int offset = CodedOutputStream.computeUInt32SizeNoTag(serialized) + serialized;
                     readOffset.setOffset(readOffset.getOffset() + offset);
 
-                    if (!isComplete) {
+                    if (!isComplete) { // 上面的callback.call() 再次失败，则缓存到bufferDataCollection集合中
                         if (bufferDataCollection.size() == collectionSize) {
-                            reCall();
+                            reCall(); // 再次尝试解析bufferDataCollection集合中的 UpstreamSegment
                         }
                         bufferDataCollection.add(bufferData);
                     }
@@ -138,8 +145,8 @@ public class DataStreamReader<MESSAGE_TYPE extends GeneratedMessageV3> {
                         logger.debug("collection size: {}, max size: {}", bufferDataCollection.size(), collectionSize);
                     }
                 } else if (bufferDataCollection.size() > 0) {
-                    reCall();
-                } else {
+                    reCall();// 未读取到新的UpstreamSegment，再次尝试处理bufferDataCollection集合
+                } else { //
                     try {
                         TimeUnit.SECONDS.sleep(5);
                     } catch (InterruptedException e) {
@@ -154,7 +161,7 @@ public class DataStreamReader<MESSAGE_TYPE extends GeneratedMessageV3> {
 
     private void reCall() {
         int maxCycle = 10;
-        for (int i = 1; i <= maxCycle; i++) {
+        for (int i = 1; i <= maxCycle; i++) { // 尝试10次
             if (bufferDataCollection.size() > 0) {
                 List<BufferData<MESSAGE_TYPE>> bufferDataList = bufferDataCollection.export();
                 for (BufferData<MESSAGE_TYPE> data : bufferDataList) {

@@ -94,7 +94,8 @@ public class RunningRule {
                 return;
             }
         }
-
+        // 传入的监控指标名与当前告警规则指定的metricsName必须匹配，否则直接返回
+        // 传入的监控数据必须是includeNames集合中的serviceName
         if (valueType == null) {
             if (metrics instanceof LongValueHolder) {
                 valueType = MetricsValueType.LONG;
@@ -112,11 +113,11 @@ public class RunningRule {
         }
 
         if (valueType != null) {
-            Window window = windows.get(meta);
+            Window window = windows.get(meta); // 查找该Service对应的Window
             if (window == null) {
-                window = new Window(period);
+                window = new Window(period); // 初始化该 Service对应的Window，指定window底层的列表长度
                 LocalDateTime timebucket = TIME_BUCKET_FORMATTER.parseLocalDateTime(metrics.getTimeBucket() + "");
-                window.moveTo(timebucket);
+                window.moveTo(timebucket); // 初始化endTime
                 windows.put(meta, window);
             }
 
@@ -165,9 +166,9 @@ public class RunningRule {
      */
     public class Window {
         private LocalDateTime endTime;
-        private int period;
-        private int counter;
-        private int silenceCountdown;
+        private int period;  // 告警检查的时间窗口
+        private int counter; // 当前打到告警阈值的次数
+        private int silenceCountdown; // 当前剩余的沉默分钟数
 
         private LinkedList<Metrics> values;
         private ReentrantLock lock = new ReentrantLock();
@@ -184,7 +185,7 @@ public class RunningRule {
             lock.lock();
             try {
                 if (endTime == null) {
-                    init();
+                    init(); // 用null填充values列表
                     endTime = current;
                 } else {
                     int minutes = Minutes.minutesBetween(endTime, current).getMinutes();
@@ -211,9 +212,9 @@ public class RunningRule {
             long bucket = metrics.getTimeBucket();
 
             LocalDateTime timebucket = TIME_BUCKET_FORMATTER.parseLocalDateTime(bucket + "");
-
+            // 计算此次传入监控点的时间与endTime之间的差值
             int minutes = Minutes.minutesBetween(timebucket, endTime).getMinutes();
-            if (minutes == -1) {
+            if (minutes == -1) { // 异常场景
                 this.moveTo(timebucket);
 
             }
@@ -230,7 +231,7 @@ public class RunningRule {
                     // also should happen, but maybe if agent/probe mechanism time is not right.
                     return;
                 }
-
+                // 在values集合的指定位置记录该监控点
                 values.set(values.size() - minutes - 1, metrics);
             } finally {
                 lock.unlock();
@@ -238,7 +239,7 @@ public class RunningRule {
         }
 
         public AlarmMessage checkAlarm() {
-            if (isMatch()) {
+            if (isMatch()) { // 遍历监控点，与告警阈值进行比较
                 /**
                  * When
                  * 1. Metrics value threshold triggers alarm by rule

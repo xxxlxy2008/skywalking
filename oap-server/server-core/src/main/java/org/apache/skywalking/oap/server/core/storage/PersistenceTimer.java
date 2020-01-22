@@ -81,6 +81,7 @@ public enum PersistenceTimer {
 
             List batchAllCollection = new LinkedList();
             try {
+                // 三个 PersistenceWorker实现构成的列表
                 List<PersistenceWorker> persistenceWorkers = new ArrayList<>();
                 persistenceWorkers.addAll(MetricsStreamProcessor.getInstance().getPersistentWorkers());
                 persistenceWorkers.addAll(RecordStreamProcessor.getInstance().getPersistentWorkers());
@@ -91,7 +92,10 @@ public enum PersistenceTimer {
                         logger.debug("extract {} worker data and save", worker.getClass().getName());
                     }
 
+                    // 逐个 PersistenceWorker实现的flushAndSwitch()方法，
+                    // 其中主要是对 DataCache 队列的切换
                     if (worker.flushAndSwitch()) {
+                        // 调用 PersistenceWorker.buildBatchCollection()为DataCache中每个元素创建相应的 IndexRequest以及 UpdateRequest请求
                         List<?> batchCollection = worker.buildBatchCollection();
 
                         if (logger.isDebugEnabled()) {
@@ -110,6 +114,7 @@ public enum PersistenceTimer {
 
             HistogramMetrics.Timer executeLatencyTimer = executeLatency.createTimer();
             try {
+                // 执行三个 PersistenceWorker生成的全部 ElasticSearch请求
                 batchDAO.batchPersistence(batchAllCollection);
             } finally {
                 executeLatencyTimer.finish();
