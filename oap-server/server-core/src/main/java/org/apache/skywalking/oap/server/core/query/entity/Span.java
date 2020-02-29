@@ -18,8 +18,13 @@
 
 package org.apache.skywalking.oap.server.core.query.entity;
 
-import java.util.*;
-import lombok.*;
+import java.util.ArrayList;
+import java.util.List;
+
+import org.apache.skywalking.apm.network.language.agent.v2.ThreadDump;
+
+import lombok.Getter;
+import lombok.Setter;
 
 /**
  * @author peng-yongsheng
@@ -45,10 +50,12 @@ public class Span {
     @Setter private boolean isRoot;
     @Setter private String segmentSpanId;
     @Setter private String segmentParentSpanId;
+    @Getter @Setter private List<ThreadDump> threadDumps;
 
     public Span() {
         this.refs = new ArrayList<>();
         this.tags = new ArrayList<>();
         this.logs = new ArrayList<>();
+        this.threadDumps = new ArrayList<>();
     }
 }

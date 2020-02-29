@@ -24,8 +24,11 @@ import com.alibaba.dubbo.rpc.Invocation;
 import com.alibaba.dubbo.rpc.Invoker;
 import com.alibaba.dubbo.rpc.Result;
 import com.alibaba.dubbo.rpc.RpcContext;
+import com.google.common.collect.ImmutableList;
+
 import java.lang.reflect.Method;
 import org.apache.skywalking.apm.agent.core.context.ContextCarrier;
+import org.apache.skywalking.apm.agent.core.context.dump.ThreadDumpUtil;
 import org.apache.skywalking.apm.agent.core.context.tag.Tags;
 import org.apache.skywalking.apm.agent.core.context.CarrierItem;
 import org.apache.skywalking.apm.agent.core.context.ContextManager;
@@ -35,6 +38,7 @@ import org.apache.skywalking.apm.agent.core.plugin.interceptor.enhance.EnhancedI
 import org.apache.skywalking.apm.agent.core.plugin.interceptor.enhance.InstanceMethodsAroundInterceptor;
 import org.apache.skywalking.apm.agent.core.plugin.interceptor.enhance.MethodInterceptResult;
 import org.apache.skywalking.apm.network.trace.component.ComponentsDefine;
+import org.apache.skywalking.apm.util.StringUtil;
 
 /**
  * {@link DubboInterceptor} define how to enhance class {@link com.alibaba.dubbo.monitor.support.MonitorFilter#invoke(Invoker,
@@ -81,7 +85,7 @@ public class DubboInterceptor implements InstanceMethodsAroundInterceptor {
                 next = next.next();
                 next.setHeadValue(rpcContext.getAttachment(next.getHeadKey()));
             }
-
+            ThreadDumpUtil.prepareThreadDump(contextCarrier.getEnableDumpFlag());
             span = ContextManager.createEntrySpan(generateOperationName(requestURL, invocation), contextCarrier);
         }
 
@@ -92,7 +96,7 @@ public class DubboInterceptor implements InstanceMethodsAroundInterceptor {
 
     @Override
     public Object afterMethod(EnhancedInstance objInst, Method method, Object[] allArguments,
-        Class<?>[] argumentsTypes, Object ret) throws Throwable {
+        Class<?>[] argumentsTypes, Object ret) {
         Result result = (Result)ret;
         if (result != null && result.getException() != null) {
             dealException(result.getException());

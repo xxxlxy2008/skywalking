@@ -76,6 +76,8 @@ public class ContextCarrier implements Serializable {
      */
     private DistributedTraceId primaryDistributedTraceId;
 
+    private String enableDumpFlag;
+
     public CarrierItem items() {
         CarrierItemHead head;
         if (Config.Agent.ACTIVE_V2_HEADER && Config.Agent.ACTIVE_V1_HEADER) {
@@ -126,7 +128,8 @@ public class ContextCarrier implements Serializable {
                         this.getEntryServiceInstanceId() + "",
                         Base64.encode(this.getPeerHost()),
                         Base64.encode(this.getEntryEndpointName()),
-                        Base64.encode(this.getParentEndpointName()));
+                        Base64.encode(this.getParentEndpointName()),
+                        this.enableDumpFlag);
                 } else {
                     return "";
                 }
@@ -164,8 +167,8 @@ public class ContextCarrier implements Serializable {
                     }
                 }
             } else if (HeaderVersion.v2.equals(version)) {
-                String[] parts = text.split("\\-", 9);
-                if (parts.length == 9) {
+                String[] parts = text.split("\\-", 10);
+                if (parts.length == 9 || parts.length == 10) {
                     try {
                         // parts[0] is sample flag, always trace if header exists.
                         this.primaryDistributedTraceId = new PropagatedTraceId(Base64.decode2UTFString(parts[1]));
@@ -176,6 +179,9 @@ public class ContextCarrier implements Serializable {
                         this.peerHost = Base64.decode2UTFString(parts[6]);
                         this.entryEndpointName = Base64.decode2UTFString(parts[7]);
                         this.parentEndpointName = Base64.decode2UTFString(parts[8]);
+                        if (parts.length == 10) {
+                            this.enableDumpFlag = parts[9];
+                        }
                     } catch (NumberFormatException e) {
 
                     }
@@ -298,6 +304,14 @@ public class ContextCarrier implements Serializable {
 
     public void setEntryServiceInstanceId(int entryServiceInstanceId) {
         this.entryServiceInstanceId = entryServiceInstanceId;
+    }
+
+    public String getEnableDumpFlag() {
+        return enableDumpFlag;
+    }
+
+    public void setEnableDumpFlag(String enableDumpFlag) {
+        this.enableDumpFlag = enableDumpFlag;
     }
 
     public enum HeaderVersion {

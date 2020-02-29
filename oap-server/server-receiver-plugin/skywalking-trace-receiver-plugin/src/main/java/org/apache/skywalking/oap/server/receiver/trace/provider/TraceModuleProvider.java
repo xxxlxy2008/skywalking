@@ -19,12 +19,15 @@
 package org.apache.skywalking.oap.server.receiver.trace.provider;
 
 import java.io.IOException;
+
+import org.apache.skywalking.apm.util.StringUtil;
 import org.apache.skywalking.oap.server.configuration.api.*;
 import org.apache.skywalking.oap.server.core.CoreModule;
 import org.apache.skywalking.oap.server.core.server.*;
 import org.apache.skywalking.oap.server.library.module.*;
 import org.apache.skywalking.oap.server.receiver.sharing.server.SharingServerModule;
 import org.apache.skywalking.oap.server.receiver.trace.module.TraceModule;
+import org.apache.skywalking.oap.server.receiver.trace.provider.handler.kafka.TraceSegmentReportServiceConsumer;
 import org.apache.skywalking.oap.server.receiver.trace.provider.handler.v5.grpc.TraceSegmentServiceHandler;
 import org.apache.skywalking.oap.server.receiver.trace.provider.handler.v5.rest.TraceSegmentServletHandler;
 import org.apache.skywalking.oap.server.receiver.trace.provider.handler.v6.grpc.TraceSegmentReportServiceHandler;
@@ -44,6 +47,7 @@ public class TraceModuleProvider extends ModuleProvider {
     private SegmentParse.Producer segmentProducer;
     private SegmentParseV2.Producer segmentProducerV2;
     private DBLatencyThresholdsAndWatcher thresholds;
+    private TraceSegmentReportServiceConsumer segmentReportServiceConsumer;
 
     public TraceModuleProvider() {
         this.moduleConfig = new TraceServiceModuleConfig();
@@ -97,6 +101,11 @@ public class TraceModuleProvider extends ModuleProvider {
 
             grpcHandlerRegister.addHandler(new TraceSegmentServiceHandler(segmentProducer));
             grpcHandlerRegister.addHandler(new TraceSegmentReportServiceHandler(segmentProducerV2, getManager()));
+            String reportStrategy = moduleConfig.getReportStrategy();
+            if(!StringUtil.isEmpty(reportStrategy) && "kafka".equals(reportStrategy.toLowerCase())){
+                segmentReportServiceConsumer = new TraceSegmentReportServiceConsumer(segmentProducerV2,moduleConfig.getKafkaTopic());
+                segmentReportServiceConsumer.start();
+            }
             jettyHandlerRegister.addHandler(new TraceSegmentServletHandler(segmentProducer));
 
             SegmentStandardizationWorker standardizationWorker = new SegmentStandardizationWorker(getManager(), segmentProducer,

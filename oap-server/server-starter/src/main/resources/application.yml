@@ -100,6 +100,8 @@ receiver-trace:
     bufferFileCleanWhenRestart: ${SW_RECEIVER_BUFFER_FILE_CLEAN_WHEN_RESTART:false}
     sampleRate: ${SW_TRACE_SAMPLE_RATE:10000} # The sample rate precision is 1/10000. 10000 means 100% sample in default.
     slowDBAccessThreshold: ${SW_SLOW_DB_THRESHOLD:default:200,mongodb:100} # The slow database access thresholds. Unit ms.
+    reportStrategy: ${SW_REPORT_STRATEGY:grpc}
+    kafkaTopic: ${SW_KAFKA_TOPIC:sw_segment_topic}
 receiver-jvm:
   default:
 receiver-clr:

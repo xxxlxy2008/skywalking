@@ -50,14 +50,15 @@ public class ClassAnnotationMatch implements IndirectMatch {
     @Override
     public ElementMatcher.Junction buildJunction() {
         ElementMatcher.Junction junction = null;
-        for (String annotation : annotations) {
+        for (String annotation : annotations) { // 遍历全部注解
             if (junction == null) {
+                // 该Junction用于检测类是否标注了指定注解
                 junction = buildEachAnnotation(annotation);
-            } else {
+            } else {// 使用 and 方式将所有Junction对象连接起来
                 junction = junction.and(buildEachAnnotation(annotation));
             }
         }
-        junction = junction.and(not(isInterface()));
+        junction = junction.and(not(isInterface())); // 排除接口
         return junction;
     }
 

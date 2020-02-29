@@ -20,8 +20,11 @@ package org.apache.skywalking.oap.server.core.query;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.stream.Collectors;
+
 import org.apache.skywalking.apm.network.language.agent.*;
 import org.apache.skywalking.apm.network.language.agent.v2.*;
+import org.apache.skywalking.apm.network.language.agent.v2.ThreadDump;
 import org.apache.skywalking.oap.server.core.*;
 import org.apache.skywalking.oap.server.core.analysis.manual.segment.SegmentRecord;
 import org.apache.skywalking.oap.server.core.cache.*;
@@ -37,6 +40,8 @@ import org.apache.skywalking.oap.server.library.module.*;
 import org.apache.skywalking.oap.server.library.util.CollectionUtils;
 
 import static java.util.Objects.nonNull;
+
+import com.google.protobuf.ByteString;
 
 /**
  * @author peng-yongsheng
@@ -90,13 +95,26 @@ public class TraceQueryService implements Service {
     }
 
     public TraceBrief queryBasicTraces(final int serviceId, final int serviceInstanceId, final int endpointId,
-        final String traceId, final String endpointName, final int minTraceDuration, int maxTraceDuration,
-        final TraceState traceState, final QueryOrder queryOrder,
-        final Pagination paging, final long startTB, final long endTB) throws IOException {
+                                       final String traceId, final String endpointName, final int minTraceDuration, int maxTraceDuration,
+                                       final TraceState traceState, final QueryOrder queryOrder,
+                                       final Pagination paging, final long startTB, final long endTB) throws IOException {
         PaginationUtils.Page page = PaginationUtils.INSTANCE.exchange(paging);
 
         return getTraceQueryDAO().queryBasicTraces(startTB, endTB, minTraceDuration, maxTraceDuration, endpointName,
-            serviceId, serviceInstanceId, endpointId, traceId, page.getLimit(), page.getFrom(), traceState, queryOrder);
+                serviceId, serviceInstanceId, endpointId, traceId, page.getLimit(), page.getFrom(), traceState, queryOrder);
+    }
+
+    private List<org.apache.skywalking.oap.server.core.query.entity.ThreadDump> buildThreadDumpList(List<ThreadDump> threadDumps) {
+        if (CollectionUtils.isEmpty(threadDumps)) {
+            return Collections.emptyList();
+        }
+        return threadDumps.stream().map(d ->
+                org.apache.skywalking.oap.server.core.query.entity.ThreadDump
+                        .builder()
+                        .dumpTimestamp(d.getDumpTime())
+                        .threadInfo(d.getThreadInfo())
+                        .build()
+        ).collect(Collectors.toList());
     }
 
     public Trace queryTrace(final String traceId) throws IOException {
@@ -110,7 +128,9 @@ public class TraceQueryService implements Service {
                 if (nonNull(segment)) {
                     if (segment.getVersion() == 2) {
                         SegmentObject segmentObject = SegmentObject.parseFrom(segment.getDataBinary());
-                        trace.getSpans().addAll(buildSpanV2List(traceId, segment.getSegmentId(), segment.getServiceId(), segmentObject.getSpansList()));
+                        trace.getSpans().addAll(buildSpanV2List(traceId, segment.getSegmentId(),
+                                segment.getServiceId(), segmentObject.getSpansList()));
+                        trace.getThreadDumps().addAll(buildThreadDumpList(segmentObject.getThreadDumpsList()));
                     } else {
                         TraceSegmentObject segmentObject = TraceSegmentObject.parseFrom(segment.getDataBinary());
                         trace.getSpans().addAll(buildSpanList(traceId, segment.getSegmentId(), segment.getServiceId(), segmentObject.getSpansList()));
@@ -139,8 +159,9 @@ public class TraceQueryService implements Service {
     }
 
     private List<Span> buildSpanV2List(String traceId, String segmentId, int serviceId,
-        List<SpanObjectV2> spanObjects) {
+                                       List<SpanObjectV2> spanObjects) {
         List<Span> spans = new ArrayList<>();
+
 
         spanObjects.forEach(spanObject -> {
             Span span = new Span();
@@ -244,7 +265,7 @@ public class TraceQueryService implements Service {
     }
 
     private List<Span> buildSpanList(String traceId, String segmentId, int serviceId,
-        List<SpanObject> spanObjects) {
+                                     List<SpanObject> spanObjects) {
         List<Span> spans = new ArrayList<>();
 
         spanObjects.forEach(spanObject -> {

@@ -21,6 +21,7 @@ package org.apache.skywalking.apm.agent.core.conf;
 
 import org.apache.skywalking.apm.agent.core.context.trace.TraceSegment;
 import org.apache.skywalking.apm.agent.core.logging.core.LogLevel;
+import org.apache.skywalking.apm.agent.core.logging.core.Strategy;
 import org.apache.skywalking.apm.agent.core.logging.core.WriterFactory;
 
 import java.util.HashMap;
@@ -155,6 +156,12 @@ public class Config {
          * The log level. Default is debug.
          */
         public static LogLevel LEVEL = LogLevel.DEBUG;
+    }
+
+    public static class Report{
+        public static Strategy strategy = Strategy.GRPC;
+
+        public static String topic = "";
     }
 
     public static class Plugin {

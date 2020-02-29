@@ -28,7 +28,10 @@ import lombok.Getter;
 public class Trace {
     private final List<Span> spans;
 
+    private final List<ThreadDump> threadDumps;
+
     public Trace() {
         this.spans = new ArrayList<>();
+        this.threadDumps = new ArrayList<>();
     }
 }

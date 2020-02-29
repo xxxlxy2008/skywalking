@@ -21,14 +21,18 @@ package org.apache.skywalking.apm.agent.core.context.trace;
 
 import java.util.LinkedList;
 import java.util.List;
+
 import org.apache.skywalking.apm.agent.core.conf.RemoteDownstreamConfig;
 import org.apache.skywalking.apm.agent.core.context.ids.DistributedTraceId;
 import org.apache.skywalking.apm.agent.core.context.ids.DistributedTraceIds;
 import org.apache.skywalking.apm.agent.core.context.ids.GlobalIdGenerator;
 import org.apache.skywalking.apm.agent.core.context.ids.ID;
 import org.apache.skywalking.apm.agent.core.context.ids.NewDistributedTraceId;
-import org.apache.skywalking.apm.network.language.agent.*;
+import org.apache.skywalking.apm.network.language.agent.UpstreamSegment;
 import org.apache.skywalking.apm.network.language.agent.v2.SegmentObject;
+import org.apache.skywalking.apm.network.language.agent.v2.ThreadDump;
+
+import com.google.common.collect.Lists;
 
 /**
  * {@link TraceSegment} is a segment or fragment of the distributed trace. See https://github.com/opentracing/specification/blob/master/specification.md#the-opentracing-data-model
@@ -47,7 +51,7 @@ public class TraceSegment {
      * The refs of parent trace segments, except the primary one. For most RPC call, {@link #refs} contains only one
      * element, but if this segment is a start span of batch process, the segment faces multi parents, at this moment,
      * we use this {@link #refs} to link them.
-     *
+     * <p>
      * This field will not be serialized. Keeping this field is only for quick accessing.
      */
     private List<TraceSegmentRef> refs;
@@ -71,6 +75,8 @@ public class TraceSegment {
     private boolean ignore = false;
 
     private boolean isSizeLimited = false;
+
+    private List<ThreadDump> threadDumps;
 
     /**
      * Create a default/empty trace segment, with current time as start time, and generate a new segment id.
@@ -153,6 +159,14 @@ public class TraceSegment {
         this.ignore = ignore;
     }
 
+    public List<ThreadDump> getThreadDumps() {
+        return threadDumps;
+    }
+
+    public void setThreadDumps(List<ThreadDump> threadDumps) {
+        this.threadDumps = threadDumps;
+    }
+
     /**
      * This is a high CPU cost method, only called when sending to collector or test cases.
      *
@@ -177,6 +191,10 @@ public class TraceSegment {
         traceSegmentBuilder.setServiceId(RemoteDownstreamConfig.Agent.SERVICE_ID);
         traceSegmentBuilder.setServiceInstanceId(RemoteDownstreamConfig.Agent.SERVICE_INSTANCE_ID);
         traceSegmentBuilder.setIsSizeLimited(this.isSizeLimited);
+        if(threadDumps == null){
+            threadDumps = Lists.newArrayList();
+        }
+        traceSegmentBuilder.addAllThreadDumps(threadDumps);
 
         upstreamBuilder.setSegment(traceSegmentBuilder.build().toByteString());
         return upstreamBuilder.build();
@@ -185,11 +203,11 @@ public class TraceSegment {
     @Override
     public String toString() {
         return "TraceSegment{" +
-            "traceSegmentId='" + traceSegmentId + '\'' +
-            ", refs=" + refs +
-            ", spans=" + spans +
-            ", relatedGlobalTraces=" + relatedGlobalTraces +
-            '}';
+                "traceSegmentId='" + traceSegmentId + '\'' +
+                ", refs=" + refs +
+                ", spans=" + spans +
+                ", relatedGlobalTraces=" + relatedGlobalTraces +
+                '}';
     }
 
     public int getApplicationInstanceId() {

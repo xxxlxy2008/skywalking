@@ -18,24 +18,31 @@
 
 package org.apache.skywalking.apm.agent.core.context;
 
-import java.util.*;
+import static org.apache.skywalking.apm.agent.core.thread.Constants.ENABLE_DUMP_FLAG;
+
+import java.util.Collections;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
+
 import org.apache.skywalking.apm.agent.core.boot.ServiceManager;
 import org.apache.skywalking.apm.agent.core.conf.Config;
 import org.apache.skywalking.apm.agent.core.context.trace.*;
 import org.apache.skywalking.apm.agent.core.dictionary.*;
 import org.apache.skywalking.apm.agent.core.logging.api.*;
 import org.apache.skywalking.apm.agent.core.sampling.SamplingService;
+import org.apache.skywalking.apm.agent.core.thread.Constants;
 import org.apache.skywalking.apm.util.StringUtil;
 
 /**
  * The <code>TracingContext</code> represents a core tracing logic controller. It build the final {@link
  * TracingContext}, by the stack mechanism, which is similar with the codes work.
- *
+ * <p>
  * In opentracing concept, it means, all spans in a segment tracing context(thread) are CHILD_OF relationship, but no
  * FOLLOW_OF.
- *
+ * <p>
  * In skywalking core concept, FOLLOW_OF is an abstract concept when cross-process MQ or cross-thread async/batch tasks
  * happen, we used {@link TraceSegmentRef} for these scenarios. Check {@link TraceSegmentRef} which is from {@link
  * ContextCarrier} or {@link ContextSnapshot}.
@@ -76,6 +83,8 @@ public class TracingContext implements AbstractTracerContext {
     private volatile boolean isRunningInAsyncMode;
     private volatile ReentrantLock asyncFinishLock;
 
+    private String enableDumpFlag;
+
     /**
      * Initialize all fields with default value.
      */
@@ -84,6 +93,11 @@ public class TracingContext implements AbstractTracerContext {
         this.spanIdGenerator = 0;
         samplingService = ServiceManager.INSTANCE.findService(SamplingService.class);
         isRunningInAsyncMode = false;
+        postConstruct();
+    }
+
+    private void postConstruct() {
+        TracingContext.ListenerManager.notifyPostConstruct(this);
     }
 
     /**
@@ -91,7 +105,7 @@ public class TracingContext implements AbstractTracerContext {
      *
      * @param carrier to carry the context for crossing process.
      * @throws IllegalStateException if the active span isn't an exit one. Ref to {@link
-     * AbstractTracerContext#inject(ContextCarrier)}
+     *                               AbstractTracerContext#inject(ContextCarrier)}
      */
     @Override
     public void inject(ContextCarrier carrier) {
@@ -100,7 +114,7 @@ public class TracingContext implements AbstractTracerContext {
             throw new IllegalStateException("Inject can be done only in Exit Span");
         }
         // 检测当前活跃的 Span是否为 ExitSpan，否则会抛出异常(略)
-        WithPeerInfo spanWithPeer = (WithPeerInfo)span;
+        WithPeerInfo spanWithPeer = (WithPeerInfo) span;
         String peer = spanWithPeer.getPeer();
         int peerId = spanWithPeer.getPeerId();
         // 设置 TraceSegmentId
@@ -147,13 +161,15 @@ public class TracingContext implements AbstractTracerContext {
         }
         // 设置 primaryDistributedTraceId，只会从 relatedGlobalTraces集合中取第一个
         carrier.setDistributedTraceIds(this.segment.getRelatedGlobalTraces());
+        Object enableDumpFlag = ContextManager.getRuntimeContext().get(Constants.ENABLE_DUMP_FLAG);
+        carrier.setEnableDumpFlag(enableDumpFlag == null ? "" : enableDumpFlag.toString());
     }
 
     /**
      * Extract the carrier to build the reference for the pre segment.
      *
      * @param carrier carried the context from a cross-process segment. Ref to {@link
-     * AbstractTracerContext#extract(ContextCarrier)}
+     *                AbstractTracerContext#extract(ContextCarrier)}
      */
     @Override
     public void extract(ContextCarrier carrier) {
@@ -175,8 +191,8 @@ public class TracingContext implements AbstractTracerContext {
     public ContextSnapshot capture() {
         List<TraceSegmentRef> refs = this.segment.getRefs();
         ContextSnapshot snapshot = new ContextSnapshot(segment.getTraceSegmentId(),
-            activeSpan().getSpanId(),
-            segment.getRelatedGlobalTraces());
+                activeSpan().getSpanId(),
+                segment.getRelatedGlobalTraces());
         int entryOperationId;
         String entryOperationName;
         int entryApplicationInstanceId;
@@ -246,30 +262,34 @@ public class TracingContext implements AbstractTracerContext {
         final AbstractSpan parentSpan = peek(); // 获取 activeSpanStack集合中的最后一个 Span，就是父Span
         final int parentSpanId = parentSpan == null ? -1 : parentSpan.getSpanId();
         if (parentSpan != null && parentSpan.isEntry()) {
-            entrySpan = (AbstractTracingSpan)DictionaryManager.findEndpointSection()
-                .findOnly(segment.getServiceId(), operationName)
-                .doInCondition(new PossibleFound.FoundAndObtain() {
-                    @Override public Object doProcess(int operationId) {
-                        return parentSpan.setOperationId(operationId);
-                    }
-                }, new PossibleFound.NotFoundAndObtain() {
-                    @Override public Object doProcess() {
-                        return parentSpan.setOperationName(operationName);
-                    }
-                });// 更新 operationId(或operationName)，然后重新 start(前面提到过，start()方法会重置其他字段)
+            entrySpan = (AbstractTracingSpan) DictionaryManager.findEndpointSection()
+                    .findOnly(segment.getServiceId(), operationName)
+                    .doInCondition(new PossibleFound.FoundAndObtain() {
+                        @Override
+                        public Object doProcess(int operationId) {
+                            return parentSpan.setOperationId(operationId);
+                        }
+                    }, new PossibleFound.NotFoundAndObtain() {
+                        @Override
+                        public Object doProcess() {
+                            return parentSpan.setOperationName(operationName);
+                        }
+                    });// 更新 operationId(或operationName)，然后重新 start(前面提到过，start()方法会重置其他字段)
             return entrySpan.start();
         } else {
-            entrySpan = (AbstractTracingSpan)DictionaryManager.findEndpointSection()
-                .findOnly(segment.getServiceId(), operationName)
-                .doInCondition(new PossibleFound.FoundAndObtain() {
-                    @Override public Object doProcess(int operationId) {
-                        return new EntrySpan(spanIdGenerator++, parentSpanId, operationId);
-                    }
-                }, new PossibleFound.NotFoundAndObtain() {
-                    @Override public Object doProcess() {
-                        return new EntrySpan(spanIdGenerator++, parentSpanId, operationName);
-                    }
-                }); // 新建 EntrySpan对象，并调用 start()方法
+            entrySpan = (AbstractTracingSpan) DictionaryManager.findEndpointSection()
+                    .findOnly(segment.getServiceId(), operationName)
+                    .doInCondition(new PossibleFound.FoundAndObtain() {
+                        @Override
+                        public Object doProcess(int operationId) {
+                            return new EntrySpan(spanIdGenerator++, parentSpanId, operationId);
+                        }
+                    }, new PossibleFound.NotFoundAndObtain() {
+                        @Override
+                        public Object doProcess() {
+                            return new EntrySpan(spanIdGenerator++, parentSpanId, operationName);
+                        }
+                    }); // 新建 EntrySpan对象，并调用 start()方法
             entrySpan.start();
             return push(entrySpan);
         }
@@ -302,7 +322,7 @@ public class TracingContext implements AbstractTracerContext {
      * Create an exit span
      *
      * @param operationName most likely a service name of remote
-     * @param remotePeer the network id(ip:port, hostname:port or ip1:port1,ip2,port, etc.)
+     * @param remotePeer    the network id(ip:port, hostname:port or ip1:port1,ip2,port, etc.)
      * @return the span represent an exit point of this segment.
      * @see ExitSpan
      */
@@ -314,54 +334,54 @@ public class TracingContext implements AbstractTracerContext {
             exitSpan = parentSpan;
         } else {
             final int parentSpanId = parentSpan == null ? -1 : parentSpan.getSpanId();
-            exitSpan = (AbstractSpan)DictionaryManager.findNetworkAddressSection()
-                .find(remotePeer).doInCondition(
-                    new PossibleFound.FoundAndObtain() {
-                        @Override
-                        public Object doProcess(final int peerId) {
-                            if (isLimitMechanismWorking()) {
-                                return new NoopExitSpan(peerId);
-                            }
+            exitSpan = (AbstractSpan) DictionaryManager.findNetworkAddressSection()
+                    .find(remotePeer).doInCondition(
+                            new PossibleFound.FoundAndObtain() {
+                                @Override
+                                public Object doProcess(final int peerId) {
+                                    if (isLimitMechanismWorking()) {
+                                        return new NoopExitSpan(peerId);
+                                    }
 
-                            return DictionaryManager.findEndpointSection()
-                                .findOnly(segment.getServiceId(), operationName)
-                                .doInCondition(
-                                    new PossibleFound.FoundAndObtain() {
-                                        @Override
-                                        public Object doProcess(int operationId) {
-                                            return new ExitSpan(spanIdGenerator++, parentSpanId, operationId, peerId);
-                                        }
-                                    }, new PossibleFound.NotFoundAndObtain() {
-                                        @Override
-                                        public Object doProcess() {
-                                            return new ExitSpan(spanIdGenerator++, parentSpanId, operationName, peerId);
-                                        }
-                                    });
-                        }
-                    },
-                    new PossibleFound.NotFoundAndObtain() {
-                        @Override
-                        public Object doProcess() {
-                            if (isLimitMechanismWorking()) {
-                                return new NoopExitSpan(remotePeer);
-                            }
+                                    return DictionaryManager.findEndpointSection()
+                                            .findOnly(segment.getServiceId(), operationName)
+                                            .doInCondition(
+                                                    new PossibleFound.FoundAndObtain() {
+                                                        @Override
+                                                        public Object doProcess(int operationId) {
+                                                            return new ExitSpan(spanIdGenerator++, parentSpanId, operationId, peerId);
+                                                        }
+                                                    }, new PossibleFound.NotFoundAndObtain() {
+                                                        @Override
+                                                        public Object doProcess() {
+                                                            return new ExitSpan(spanIdGenerator++, parentSpanId, operationName, peerId);
+                                                        }
+                                                    });
+                                }
+                            },
+                            new PossibleFound.NotFoundAndObtain() {
+                                @Override
+                                public Object doProcess() {
+                                    if (isLimitMechanismWorking()) {
+                                        return new NoopExitSpan(remotePeer);
+                                    }
 
-                            return DictionaryManager.findEndpointSection()
-                                .findOnly(segment.getServiceId(), operationName)
-                                .doInCondition(
-                                    new PossibleFound.FoundAndObtain() {
-                                        @Override
-                                        public Object doProcess(int operationId) {
-                                            return new ExitSpan(spanIdGenerator++, parentSpanId, operationId, remotePeer);
-                                        }
-                                    }, new PossibleFound.NotFoundAndObtain() {
-                                        @Override
-                                        public Object doProcess() {
-                                            return new ExitSpan(spanIdGenerator++, parentSpanId, operationName, remotePeer);
-                                        }
-                                    });
-                        }
-                    });
+                                    return DictionaryManager.findEndpointSection()
+                                            .findOnly(segment.getServiceId(), operationName)
+                                            .doInCondition(
+                                                    new PossibleFound.FoundAndObtain() {
+                                                        @Override
+                                                        public Object doProcess(int operationId) {
+                                                            return new ExitSpan(spanIdGenerator++, parentSpanId, operationId, remotePeer);
+                                                        }
+                                                    }, new PossibleFound.NotFoundAndObtain() {
+                                                        @Override
+                                                        public Object doProcess() {
+                                                            return new ExitSpan(spanIdGenerator++, parentSpanId, operationName, remotePeer);
+                                                        }
+                                                    });
+                                }
+                            });
             push(exitSpan);
         }
         exitSpan.start();
@@ -391,7 +411,7 @@ public class TracingContext implements AbstractTracerContext {
         AbstractSpan lastSpan = peek(); // 获取当前活跃的 Span对象
         if (lastSpan == span) { // 只能关闭当前活跃 Span对象，否则抛异常
             if (lastSpan instanceof AbstractTracingSpan) {
-                AbstractTracingSpan toFinishSpan = (AbstractTracingSpan)lastSpan;
+                AbstractTracingSpan toFinishSpan = (AbstractTracingSpan) lastSpan;
                 if (toFinishSpan.finish(segment)) { // 尝试关闭 Span，当完全关闭之后，会将其从 activeSpanStack集合中删除
                     pop();
                 }
@@ -409,7 +429,8 @@ public class TracingContext implements AbstractTracerContext {
         return activeSpanStack.isEmpty();
     }
 
-    @Override public AbstractTracerContext awaitFinishAsync() {
+    @Override
+    public AbstractTracerContext awaitFinishAsync() {
         if (!isRunningInAsyncMode) {
             synchronized (this) {
                 if (!isRunningInAsyncMode) {
@@ -423,7 +444,8 @@ public class TracingContext implements AbstractTracerContext {
         return this;
     }
 
-    @Override public void asyncStop(AsyncSpan span) {
+    @Override
+    public void asyncStop(AsyncSpan span) {
         asyncSpanCounter.addAndGet(-1);
 
         if (checkFinishConditions()) {
@@ -473,6 +495,31 @@ public class TracingContext implements AbstractTracerContext {
      */
     public static class ListenerManager {
         private static List<TracingContextListener> LISTENERS = new LinkedList<TracingContextListener>();
+
+        private static List<TracingContextPostConstructListener> POST_CONSTRUCT_LISTENERS
+                = new LinkedList<TracingContextPostConstructListener>();
+
+        public static synchronized void addFirst(TracingContextPostConstructListener listener) {
+            POST_CONSTRUCT_LISTENERS.add(0, listener);
+        }
+
+        public static synchronized void add(TracingContextPostConstructListener listener) {
+            POST_CONSTRUCT_LISTENERS.add(listener);
+        }
+
+        public static synchronized void remove(TracingContextPostConstructListener listener) {
+            POST_CONSTRUCT_LISTENERS.remove(listener);
+        }
+
+        static void notifyPostConstruct(TracingContext tracerContext) {
+            for (TracingContextPostConstructListener listener : POST_CONSTRUCT_LISTENERS) {
+                listener.postConstruct(tracerContext);
+            }
+        }
+
+        public static synchronized void addFirst(TracingContextListener listener) {
+            LISTENERS.add(0, listener);
+        }
 
         /**
          * Add the given {@link TracingContextListener} to {@link #LISTENERS} list.
@@ -541,12 +588,20 @@ public class TracingContext implements AbstractTracerContext {
             long currentTimeMillis = System.currentTimeMillis();
             if (currentTimeMillis - lastWarningTimestamp > 30 * 1000) {
                 logger.warn(new RuntimeException("Shadow tracing context. Thread dump"), "More than {} spans required to create",
-                    Config.Agent.SPAN_LIMIT_PER_SEGMENT);
+                        Config.Agent.SPAN_LIMIT_PER_SEGMENT);
                 lastWarningTimestamp = currentTimeMillis;
             }
             return true;
         } else {
             return false;
         }
+    }
+
+    public String getEnableDumpFlag() {
+        return enableDumpFlag;
+    }
+
+    public void setEnableDumpFlag(String enableDumpFlag) {
+        this.enableDumpFlag = enableDumpFlag;
     }
 }
